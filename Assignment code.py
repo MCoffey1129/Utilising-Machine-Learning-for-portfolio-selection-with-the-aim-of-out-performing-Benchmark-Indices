@@ -5,8 +5,28 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 import datetime as dt
+import requests
+from bs4 import BeautifulSoup as bs
 
-# Section 2
+
+# Output all columns
+desired_width = 500
+pd.set_option('display.width', desired_width)
+pd.set_option('display.max_columns', 30)
+
+# Section 2.1 - Get the tickers for all stocks that trade on the NYSE
+
+# The list of stocks traded on the NYSE was sourced from the NASDAQ website on the 31/05/2021
+
+stocks = pd.read_csv(r'Files\NYSE_stocks_2020_05_31.csv')
+stocks.head() # see what the first 5 stocks in the list look like
+stocks.shape  # 3,127 stocks across 11 columns
+
+
+
+
+
+# Ticker stuff.............
 
 # Section 2.1 - Import data from Yahoo finance
 Stock_list = ['AMZN', 'TSLA']
@@ -16,6 +36,10 @@ for i in Stock_list:
     ticker_info.append(a)
 
 print(ticker_info)
+
+SP_500 = yf.Ticker('^GSPC')
+SP_500 = SP_500.get_info()
+print(SP_500)
 
 Amazon = yf.Ticker('AMZN')
 Amzn_info_df = Amazon.get_info()
