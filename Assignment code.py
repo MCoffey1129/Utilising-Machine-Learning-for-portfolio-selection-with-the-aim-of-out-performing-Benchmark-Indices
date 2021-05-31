@@ -7,9 +7,10 @@ import yfinance as yf
 import datetime as dt
 import requests
 from bs4 import BeautifulSoup as bs
-import morningstar as ms
+from alpha_vantage.fundamentaldata import FundamentalData
 
-Apl = ms.main()
+
+
 
 # Output all columns
 desired_width = 500
@@ -44,7 +45,7 @@ stock_list = list(stock_symbol)
 print(type(stock_list))  # List
 print(len(stock_list))  # Length is unchanged, all 3,128 stocks are in the list
 
-API_key - FNpLM9YRfmQLKUfYmmHf
+
 
 ticker_info = []
 for i in stock_list:
@@ -84,4 +85,15 @@ plt.show()
 
 
 
-# Section 2.2 - Import CSV required for the Project
+API_key  = "N12W0SC4D3H7IMJ1"
+
+base_url = 'https://www.alphavantage.co/query?'
+params = {'function': 'EARNINGS',
+         'symbol': 'IBM',
+         'apikey': API_key}
+
+response = requests.get(base_url, params=params)
+
+print(response.json())
+test1 = pd.DataFrame(response.json())
+print(test1)
