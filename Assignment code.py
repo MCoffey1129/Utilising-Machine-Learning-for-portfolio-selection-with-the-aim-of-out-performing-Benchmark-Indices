@@ -7,7 +7,9 @@ import yfinance as yf
 import datetime as dt
 import requests
 from bs4 import BeautifulSoup as bs
+import morningstar as ms
 
+Apl = ms.main()
 
 # Output all columns
 desired_width = 500
@@ -20,24 +22,39 @@ pd.set_option('display.max_columns', 30)
 
 stocks = pd.read_csv(r'Files\NYSE_stocks_2020_05_31.csv')
 stocks.head() # see what the first 5 stocks in the list look like
-stocks.shape  # 3,127 stocks across 11 columns
+stocks.shape  # 3,128 stocks with 11 different features
+stocks.describe() # Min IPO year is 1986 which is correct and no cases have an IPO post 2021
+stocks.dtypes  # No issues with any of the data types
+stocks.isnull().sum()
+# There is a large number of Nulls for Market cap (472), Country (589),
+# IPO year (1520), sector (1184) and industry (1184).
+# Given that these unpopulated fields are populated in yahoo finance I will only use the ticker value going forward
 
 
+# Removing unwanted columns
+stock_symbol = stocks['Symbol']
+stock_symbol.head()
+stock_symbol.shape  # 3,128 stocks with only the stock symbol column
 
 
+# Section 1.2 - Get required info from Yahoo finance on the stocks
 
-# Ticker stuff.............
+# Convert the pandas dataframe into a list which we then pass through yahoo finance
+stock_list = list(stock_symbol)
+print(type(stock_list))  # List
+print(len(stock_list))  # Length is unchanged, all 3,128 stocks are in the list
 
-# Section 2.1 - Import data from Yahoo finance
-Stock_list = ['AMZN', 'TSLA']
+API_key - FNpLM9YRfmQLKUfYmmHf
+
 ticker_info = []
-for i in Stock_list:
-    a = yf.Ticker(i)
-    ticker_info.append(a)
+for i in stock_list:
+    yf_info = yf.Ticker(i)
+    ticker_info.append(yf_info)
 
 print(ticker_info)
+print(len(ticker_info))
 
-SP_500 = yf.Ticker('^GSPC')
+SP_500 = yf.Ticker('DHI')
 SP_500 = SP_500.get_info()
 print(SP_500)
 
