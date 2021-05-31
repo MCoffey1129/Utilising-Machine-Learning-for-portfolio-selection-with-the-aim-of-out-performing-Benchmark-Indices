@@ -87,13 +87,34 @@ plt.show()
 
 API_key  = "N12W0SC4D3H7IMJ1"
 
+stk_list = ['TSLA','AMZN']
+
+EPS_data = pd.DataFrame()  # create an empty dataframe
+for stk in stk_list:
+    base_url = 'https://www.alphavantage.co/query?'
+    params = {'function': 'Earnings',
+              'symbol': stk,
+              'apikey': API_key}
+
+    response = requests.get(base_url, params=params)
+
+    output = response.json()
+    Temp_data = pd.DataFrame(output['annualEarnings'])
+    Temp_data['ticker'] = output['symbol']
+    EPS_data = EPS_data.append(Temp_data)
+
+print(EPS_data)
+
 base_url = 'https://www.alphavantage.co/query?'
-params = {'function': 'EARNINGS',
-         'symbol': 'IBM',
-         'apikey': API_key}
+params = {'function': 'Earnings',
+          'symbol': 'AMZN',
+          'apikey': API_key}
 
 response = requests.get(base_url, params=params)
 
-print(response.json())
-test1 = pd.DataFrame(response.json())
-print(test1)
+output = response.json()
+Temp_data = pd.DataFrame(output['annualEarnings'])
+Temp_data['ticker'] = output['symbol']
+print(Temp_data)
+
+print(output)
