@@ -7,7 +7,7 @@ import yfinance as yf
 import datetime as dt
 import requests
 from bs4 import BeautifulSoup as bs
-from alpha_vantage.fundamentaldata import FundamentalData
+import re
 
 
 
@@ -89,11 +89,20 @@ API_key  = "N12W0SC4D3H7IMJ1"
 
 stk_list = ['TSLA','AMZN']
 
+av_stock_list = stock_list.replace("^","-P-")
+
+av_stock_list = []
+for string in stock_list:
+    upd_stock_list = string.replace("^", "-P-")
+    av_stock_list.append(upd_stock_list)
+
+print(av_stock_list)
+
 EPS_data = pd.DataFrame()  # create an empty dataframe
-for stk in stk_list:
+for stock in List1:
     base_url = 'https://www.alphavantage.co/query?'
     params = {'function': 'Earnings',
-              'symbol': stk,
+              'symbol': stock,
               'apikey': API_key}
 
     response = requests.get(base_url, params=params)
@@ -101,13 +110,17 @@ for stk in stk_list:
     output = response.json()
     Temp_data = pd.DataFrame(output['annualEarnings'])
     Temp_data['ticker'] = output['symbol']
-    EPS_data = EPS_data.append(Temp_data)
+    EPS_data = EPS_data.append(Temp_data, ignore_index=True)
 
 print(EPS_data)
 
+print(len(av_stock_list))
+List1 = list(av_stock_list[0:10])
+print(List1)
+
 base_url = 'https://www.alphavantage.co/query?'
 params = {'function': 'Earnings',
-          'symbol': 'AMZN',
+          'symbol': 'AAIC',
           'apikey': API_key}
 
 response = requests.get(base_url, params=params)
@@ -117,4 +130,5 @@ Temp_data = pd.DataFrame(output['annualEarnings'])
 Temp_data['ticker'] = output['symbol']
 print(Temp_data)
 
+output = response.json()
 print(output)
