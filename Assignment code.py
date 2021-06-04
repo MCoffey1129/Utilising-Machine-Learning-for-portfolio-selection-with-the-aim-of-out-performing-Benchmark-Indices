@@ -131,35 +131,26 @@ for stock in stk_list:
 
 print(Overview_df)
 
-empty_df = pd.DataFrame()
-def create_df(text):
-    pd.DataFrame() = text
-create_df(df10)
 
 
-# EPS data
-
-empty_df = pd.DataFrame()
-def import_data(fnc_nm, output_reqd, df_nm):
-    empty_df = df_nm
-    for stock in stk_list:
-        time.sleep(1)
-        base_url = 'https://www.alphavantage.co/query?'
-        params = {'function': fnc_nm,
+Temp_data = pd.DataFrame()
+eps_data = pd.DataFrame()
+for stock in stk_list:
+    time.sleep(1)
+    base_url = 'https://www.alphavantage.co/query?'
+    params = {'function': 'EARNINGS',
               'symbol': stock,
               'apikey': API_key}
 
-        response = requests.get(base_url, params=params)
+    response = requests.get(base_url, params=params)
 
-        output = response.json()
-        Temp_data = pd.DataFrame(output[output_reqd])
-        Temp_data['Symbol'] = output['symbol']
-        df_nm = df_nm.append(Temp_data, ignore_index=True)
+    output = response.json()
+    Temp_data = pd.DataFrame(output['quarterlyEarnings'])
+    Temp_data['Symbol'] = output['symbol']
+    eps_data = eps_data.append(Temp_data, ignore_index=True)
 
-import_data('EARNINGS', 'quarterlyEarnings', EPS_output)
-
-'quarterlyEarnings'
-
+print(eps_data)
+eps_data[['fiscalDateEnding' , 'Symbol']]
 
 # Income Statement
 
@@ -181,7 +172,7 @@ for stock in stk_list:
     inc_st_data = inc_st_data.append(Temp_data, ignore_index=True)
 
 print(inc_st_data)
-
+inc_st_data[['fiscalDateEnding' , 'Symbol']]
 
 # Balance Sheet
 
@@ -204,7 +195,7 @@ for stock in stk_list:
 
 print(BS_data)
 
-print(BS_data[['fiscalDateEnding', 'Symbol', 'totalAssets','inventory', 'goodwill']])
+BS_data[['fiscalDateEnding' , 'Symbol']]
 
 
 # Cash flow
@@ -215,7 +206,7 @@ CF_data = pd.DataFrame()
 for stock in stk_list:
     time.sleep(1)
     base_url = 'https://www.alphavantage.co/query?'
-    params = {'function': 'BALANCE_SHEET',
+    params = {'function': 'CASH_FLOW',
               'symbol': stock,
               'apikey': API_key}
 
@@ -227,3 +218,53 @@ for stock in stk_list:
     CF_data = CF_data.append(Temp_data, ignore_index=True)
 
 print(CF_data)
+
+
+# Cash flow
+
+Temp_data = pd.DataFrame()
+CF_data = pd.DataFrame()
+
+for stock in stk_list:
+    time.sleep(1)
+    base_url = 'https://www.alphavantage.co/query?'
+    params = {'function': 'CASH_FLOW',
+              'symbol': stock,
+              'apikey': API_key}
+
+    response = requests.get(base_url, params=params)
+
+    output = response.json()
+    Temp_data = pd.DataFrame(output['quarterlyReports'])
+    Temp_data['Symbol'] = output['symbol']
+    CF_data = CF_data.append(Temp_data, ignore_index=True)
+
+print(CF_data)
+
+
+# Monthly stock prices
+
+Temp_data = pd.DataFrame()
+monthly_prices = pd.DataFrame()
+
+for stock in stk_list:
+    time.sleep(1)
+    base_url = 'https://www.alphavantage.co/query?'
+    params = {'function': 'TIME_SERIES_MONTHLY_ADJUSTED',
+              'outputsize' : 'full',
+              'symbol': stock,
+              'apikey': API_key}
+
+    response = requests.get(base_url, params=params)
+
+    output = response.json()
+    Temp_data = pd.DataFrame(output['Monthly Adjusted Time Series']).transpose().rename_axis('dt').reset_index()
+    Temp_data['Symbol'] = stock
+    Temp_data = Temp_data.loc[Temp_data['dt'] > '2014-11-30']
+    monthly_prices = monthly_prices.append(Temp_data, ignore_index=True)
+
+print(monthly_prices)
+
+monthly_prices.columns
+
+monthly_prices[['dt' , '5. adjusted close' , 'Symbol']]
