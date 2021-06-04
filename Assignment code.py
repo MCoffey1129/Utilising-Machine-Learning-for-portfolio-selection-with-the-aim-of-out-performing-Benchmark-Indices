@@ -17,6 +17,31 @@ desired_width = 500
 pd.set_option('display.width', desired_width)
 pd.set_option('display.max_columns', 30)
 
+
+# timer decorator - to check what functions are taking a long time to run!!
+import time
+def timer(func):
+    """A decorator that prints how long a function took to run."""
+    # Define the wrapper function to return.
+    def wrapper(*args, **kwargs):
+        # When wrapper() is called, get the current time.
+        t_start = time.time()
+        # Call the decorated function and store the result.
+        result = func(*args, **kwargs)
+        # Get the total time it took to run, and print it.
+        t_total = time.time() - t_start
+        print('{} took {}s'.format(func.__name__, t_total))
+        return result
+    return wrapper
+
+
+
+
+
+
+
+
+
 # Section 2.1 - Get the tickers for all stocks that trade on the NYSE & the NASDAQ and import them into Pycharm
 
 # The list of stocks traded on either the NYSE or the NASDAQ was sourced from the NASDAQ website
@@ -79,12 +104,17 @@ print(len(upd_stock_list)) # 6364 (7377 - 581 - 432)
 # We need to ensure that we do not bring in any forward looking metrics including market cap and the number of full
 # time employees
 
+# Company Overview
+
 API_key  = "OSPJN1YHMULW3OEO"
 
-# stk_list = ['TSLA']
 stk_list = ['TSLA','AMZN']
 
+Overview_df = pd.DataFrame()
+columns = ['Symbol', 'AssetType', 'Name', 'Exchange',  'Currency', 'Country', 'Sector', 'Industry']
+
 for stock in stk_list:
+    time.sleep(1)
     base_url = 'https://www.alphavantage.co/query?'
     params = {'function': 'OVERVIEW',
               'symbol': stock,
@@ -93,24 +123,16 @@ for stock in stk_list:
     response = requests.get(base_url, params=params)
 
     output = response.json()
-    Temp_data = pd.DataFrame(output['Name'])
+    Temp_data_df = pd.DataFrame(list(output.values())).transpose()
+    Temp_data_df.columns = [list(output.keys())]
+    Temp_data_df = Temp_data_df[columns]
 
-print(output['Name'])
+    Overview_df = Overview_df.append(Temp_data_df, ignore_index=True)
 
-
-AssetType
-Name
-Exchange
-Currency
-Country
-Sector
-Industry
+print(Overview_df)
 
 
-
-
-
-
+# EPS data
 
 EPS_data = pd.DataFrame()
 
@@ -124,38 +146,30 @@ for stock in stk_list:
 
     output = response.json()
     Temp_data = pd.DataFrame(output['quarterlyEarnings'])
-    Temp_data['ticker'] = output['symbol']
+    Temp_data['Symbol'] = output['symbol']
     EPS_data = EPS_data.append(Temp_data, ignore_index=True)
 
 print(EPS_data)
 
-print(len(av_stock_list))
-List1 = list(av_stock_list[0:10])
-print(List1)
 
-base_url = 'https://www.alphavantage.co/query?'
-params = {'function': 'Earnings',
-          'symbol': 'AAIC',
-          'apikey': API_key}
+#
 
-response = requests.get(base_url, params=params)
+inc_st_data = pd.DataFrame()
 
-output = response.json()
-Temp_data = pd.DataFrame(output['annualEarnings'])
-Temp_data['ticker'] = output['symbol']
-print(Temp_data)
+for stock in stk_list:
+    base_url = 'https://www.alphavantage.co/query?'
+    params = {'function': 'INCOME_STATEMENT',
+              'symbol': stock,
+              'apikey': API_key}
 
-output = response.json()
+    response = requests.get(base_url, params=params)
+
+    output = response.json()
+    Temp_data = pd.DataFrame(output['quarterlyEarnings'])
+    Temp_data['Symbol'] = output['symbol']
+    inc_st_data = inc_st_data.append(Temp_data, ignore_index=True)
+
 print(output)
 
 
-base_url = 'https://www.alphavantage.co/query?'
-params = {'function': 'LISTING_STATUS',
-          'date': '2019-12-31',
-          'state': 'active',
-          'apikey': API_key}
 
-response = requests.get(base_url, params=params)
-
-output = response.json()
-print(output)
