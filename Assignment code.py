@@ -37,10 +37,9 @@ stocks.isnull().sum()
 
 # Stock name
 stock_df = stocks[['Symbol','Name']]
-stock_name_list = list(stock_df.to_records(index=False))
+stock_name_list = np.strip(list(stock_df.to_records(index=False)))
 print(stock_name_list)
 
-stock_name_list[0][1]
 
 # Check to see how many of the 7,377 stocks are either notes or warrants
 # We use regex to print out a list of tuples containing first the list position of where the Note or list
@@ -53,106 +52,69 @@ regex2 = r'\W'
 removal_list1 = []
 removal_list2 = []
 upd_stock_list = []
+
 for i in range(len(stock_name_list)):
-    reg1 = re.findall(regex1, stock_name_list[i][1])
-    reg2 = re.findall(regex2, stock_name_list[i][0])
+    reg1 = re.findall(regex1, stock_name_list[i][1].strip())
+    reg2 = re.findall(regex2, stock_name_list[i][0].strip())
     if reg1 != []:
         removal_list1.append((i, reg1))
-    elif reg2 != []:
+    elif reg2 != [] and reg2 != ['/']:
         removal_list2.append((i, reg2))
     else:
-        upd_stock_list.append(stock_name_list[i][0])
+        upd_stock_list.append(stock_name_list[i][0].strip())
 
 print(removal_list1)
+print(removal_list2)
 
 print(len(stock_name_list)) # 7377
-print(len(removal_list1)) # 581
-print(len(removal_list2)) # 581
-print(len(upd_stock_list)) # 6796 (7377 - 581)
+print(len(removal_list1)) # 581 (422 warrants, 135 notes and 24 debentures)
+print(len(removal_list2)) # 432 (preferred stock)
+print(len(upd_stock_list)) # 6364 (7377 - 581 - 432)
 
+######################################################################################################################
+            # Section 2.3 - Get required info from Alpha Vantage
+######################################################################################################################
 
-reg2 = re.findall(regex2, stock_name_list[4][0])
-print(reg2)
+# We want to try and find the stock information on the 6,364 stocks.
+# We need to ensure that we do not bring in any forward looking metrics including market cap and the number of full
+# time employees
 
+API_key  = "OSPJN1YHMULW3OEO"
 
-print(stock_name_list[4][0])
-
-# Remove any prefferred shares
-if ('^' not in upd_stock_list[0]):
-    a = upd_stock_list[0]
-
-print(upd_stock_list)
-
-
-
-# Removing unwanted columns
-stock_symbol = stocks['Symbol']
-stock_symbol.head()
-stock_symbol.shape  # 3,128 stocks with only the stock symbol column
-
-
-# Section 1.2 - Get required info from Yahoo finance on the stocks
-
-# Convert the pandas dataframe into a list which we then pass through yahoo finance
-stock_list = list(stock_symbol)
-print(type(stock_list))  # List
-print(len(stock_list))  # Length is unchanged, all 3,128 stocks are in the list
-
-
-
-ticker_info = []
-for i in stock_list:
-    yf_info = yf.Ticker(i)
-    ticker_info.append(yf_info)
-
-print(ticker_info)
-print(len(ticker_info))
-
-SP_500 = yf.Ticker('DHI')
-SP_500 = SP_500.get_info()
-print(SP_500)
-
-Amazon = yf.Ticker('AMZN')
-Amzn_info_df = Amazon.get_info()
-print(Amzn_info_df)
-print(Amazon.earnings)
-
-Tesla = yf.Ticker('TSLA')
-Tesla_info_df = Tesla.get_info()
-print(Tesla_info_df)
-
-Ptf = yf.Ticker(('TSLA','AMZN'))
-
-
-amzn_price = pd.DataFrame(Amazon.history(period="max"))
-print(amzn_price)
-amzn_price.describe()
-
-close = amzn_price['Close']
-print(close)
-
-plt.plot(close)
-plt.plot(amzn_price['Open'])
-plt.legend(["Close", "Open"])
-plt.show()
-
-
-
-API_key  = "N12W0SC4D3H7IMJ1"
-
+# stk_list = ['TSLA']
 stk_list = ['TSLA','AMZN']
 
-av_stock_list = stock_list.replace("^","-P-")
+for stock in stk_list:
+    base_url = 'https://www.alphavantage.co/query?'
+    params = {'function': 'OVERVIEW',
+              'symbol': stock,
+              'apikey': API_key}
 
-av_stock_list = []
-for string in stock_list:
-    upd_stock_list = string.replace("^", "-P-")
-    av_stock_list.append(upd_stock_list)
+    response = requests.get(base_url, params=params)
 
-print(av_stock_list)
+    output = response.json()
+    Temp_data = pd.DataFrame(output['Name'])
 
-EPS_data = pd.DataFrame()  # create an empty dataframe
-for stock in List1:
+print(output['Name'])
+
+
+AssetType
+Name
+Exchange
+Currency
+Country
+Sector
+Industry
+
+
+
+
+
+
+
+EPS_data = pd.DataFrame()
+
+for stock in stk_list:
     base_url = 'https://www.alphavantage.co/query?'
     params = {'function': 'Earnings',
               'symbol': stock,
@@ -161,7 +123,7 @@ for stock in List1:
     response = requests.get(base_url, params=params)
 
     output = response.json()
-    Temp_data = pd.DataFrame(output['annualEarnings'])
+    Temp_data = pd.DataFrame(output['quarterlyEarnings'])
     Temp_data['ticker'] = output['symbol']
     EPS_data = EPS_data.append(Temp_data, ignore_index=True)
 
