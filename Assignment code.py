@@ -17,19 +17,72 @@ desired_width = 500
 pd.set_option('display.width', desired_width)
 pd.set_option('display.max_columns', 30)
 
-# Section 2.1 - Get the tickers for all stocks that trade on the NYSE
+# Section 2.1 - Get the tickers for all stocks that trade on the NYSE & the NASDAQ and import them into Pycharm
 
-# The list of stocks traded on the NYSE was sourced from the NASDAQ website on the 31/05/2021
+# The list of stocks traded on either the NYSE or the NASDAQ was sourced from the NASDAQ website
+# (https://www.nasdaq.com/market-activity/stocks/screener) on the 05/06/2021
 
-stocks = pd.read_csv(r'Files\NYSE_stocks_2020_05_31.csv')
-stocks.head() # see what the first 5 stocks in the list look like
-stocks.shape  # 3,128 stocks with 11 different features
-stocks.describe() # Min IPO year is 1986 which is correct and no cases have an IPO post 2021
-stocks.dtypes  # No issues with any of the data types
+stocks = pd.read_csv(r'Files\NYSE_NASDAQ_stocks_20210604.csv')
+
+# Section 2.2 - Exploratory data analysis
+
+stocks.head()  # print out the first 5 rows
+stocks.shape  # 7,377 stocks with 11 different features
+stocks.describe()  # No issues with any of the data, the min IPO year is 1972 and the max IPO year is 2021
+stocks.dtypes  # IPO year should be an integer
 stocks.isnull().sum()
-# There is a large number of Nulls for Market cap (472), Country (589),
-# IPO year (1520), sector (1184) and industry (1184).
+# There is a large number of Nulls for % Change (3), Market cap (476), Country (597),
+# IPO year (3100), sector (1910) and industry (1911).
 # Given that these unpopulated fields are populated in yahoo finance I will only use the ticker value going forward
+
+# Stock name
+stock_df = stocks[['Symbol','Name']]
+stock_name_list = list(stock_df.to_records(index=False))
+print(stock_name_list)
+
+stock_name_list[0][1]
+
+# Check to see how many of the 7,377 stocks are either notes or warrants
+# We use regex to print out a list of tuples containing first the list position of where the Note or list
+# is contained and the second is the whether the word is notes or warrants in that position
+# There are 557 entries which are either Notes or Warrants in our lists which need to be removed
+# (422 warrants and 135 Notes)
+
+regex1 = r'[Ww]arrant|[Nn]otes|[Dd]ebenture'
+regex2 = r'\W'
+removal_list1 = []
+removal_list2 = []
+upd_stock_list = []
+for i in range(len(stock_name_list)):
+    reg1 = re.findall(regex1, stock_name_list[i][1])
+    reg2 = re.findall(regex2, stock_name_list[i][0])
+    if reg1 != []:
+        removal_list1.append((i, reg1))
+    elif reg2 != []:
+        removal_list2.append((i, reg2))
+    else:
+        upd_stock_list.append(stock_name_list[i][0])
+
+print(removal_list1)
+
+print(len(stock_name_list)) # 7377
+print(len(removal_list1)) # 581
+print(len(removal_list2)) # 581
+print(len(upd_stock_list)) # 6796 (7377 - 581)
+
+
+reg2 = re.findall(regex2, stock_name_list[4][0])
+print(reg2)
+
+
+print(stock_name_list[4][0])
+
+# Remove any prefferred shares
+if ('^' not in upd_stock_list[0]):
+    a = upd_stock_list[0]
+
+print(upd_stock_list)
+
 
 
 # Removing unwanted columns
@@ -129,6 +182,18 @@ output = response.json()
 Temp_data = pd.DataFrame(output['annualEarnings'])
 Temp_data['ticker'] = output['symbol']
 print(Temp_data)
+
+output = response.json()
+print(output)
+
+
+base_url = 'https://www.alphavantage.co/query?'
+params = {'function': 'LISTING_STATUS',
+          'date': '2019-12-31',
+          'state': 'active',
+          'apikey': API_key}
+
+response = requests.get(base_url, params=params)
 
 output = response.json()
 print(output)
