@@ -12,12 +12,6 @@ import re
 
 
 
-# Output all columns
-desired_width = 500
-pd.set_option('display.width', desired_width)
-pd.set_option('display.max_columns', 30)
-
-
 # timer decorator - to check what functions are taking a long time to run!!
 import time
 def timer(func):
@@ -35,14 +29,9 @@ def timer(func):
     return wrapper
 
 
-
-
-
-
-
-
-
+###############################################################################################################
 # Section 2.1 - Get the tickers for all stocks that trade on the NYSE & the NASDAQ and import them into Pycharm
+###############################################################################################################
 
 # The list of stocks traded on either the NYSE or the NASDAQ was sourced from the NASDAQ website
 # (https://www.nasdaq.com/market-activity/stocks/screener) on the 05/06/2021
@@ -62,7 +51,7 @@ stocks.isnull().sum()
 
 # Stock name
 stock_df = stocks[['Symbol','Name']]
-stock_name_list = np.strip(list(stock_df.to_records(index=False)))
+stock_name_list = (list(stock_df.to_records(index=False)))
 print(stock_name_list)
 
 
@@ -108,12 +97,11 @@ print(len(upd_stock_list)) # 6364 (7377 - 581 - 432)
 
 API_key  = "OSPJN1YHMULW3OEO"
 
-stk_list = ['TSLA','AMZN']
 
 Overview_df = pd.DataFrame()
 columns = ['Symbol', 'AssetType', 'Name', 'Exchange',  'Currency', 'Country', 'Sector', 'Industry']
 
-for stock in stk_list:
+for stock in upd_stock_list:
     time.sleep(1)
     base_url = 'https://www.alphavantage.co/query?'
     params = {'function': 'OVERVIEW',
@@ -131,8 +119,9 @@ for stock in stk_list:
 
 print(Overview_df)
 
+print(stk_list)
 
-
+# EPS
 Temp_data = pd.DataFrame()
 eps_data = pd.DataFrame()
 for stock in stk_list:
@@ -220,28 +209,6 @@ for stock in stk_list:
 print(CF_data)
 
 
-# Cash flow
-
-Temp_data = pd.DataFrame()
-CF_data = pd.DataFrame()
-
-for stock in stk_list:
-    time.sleep(1)
-    base_url = 'https://www.alphavantage.co/query?'
-    params = {'function': 'CASH_FLOW',
-              'symbol': stock,
-              'apikey': API_key}
-
-    response = requests.get(base_url, params=params)
-
-    output = response.json()
-    Temp_data = pd.DataFrame(output['quarterlyReports'])
-    Temp_data['Symbol'] = output['symbol']
-    CF_data = CF_data.append(Temp_data, ignore_index=True)
-
-print(CF_data)
-
-
 # Monthly stock prices
 
 Temp_data = pd.DataFrame()
@@ -268,3 +235,31 @@ print(monthly_prices)
 monthly_prices.columns
 
 monthly_prices[['dt' , '5. adjusted close' , 'Symbol']]
+
+
+
+Overview_df = pd.DataFrame()
+columns = ['Symbol', 'AssetType', 'Name', 'Exchange',  'Currency', 'Country', 'Sector', 'Industry']
+
+for stock in upd_stock_list:
+    time.sleep(1)
+    base_url = 'https://www.alphavantage.co/query?'
+    params = {'function': 'CASH_FLOW',
+              'symbol': 'ACP',
+              'apikey': API_key}
+
+    response = requests.get(base_url, params=params)
+
+    output = response.json()
+    Temp_data_df = pd.DataFrame(list(output.values())).transpose()
+    Temp_data_df.columns = [list(output.keys())]
+    Temp_data_df = Temp_data_df[columns]
+
+    Overview_df = Overview_df.append(Temp_data_df, ignore_index=True)
+
+print(output)
+
+import yfinance as yf
+Amazon = yf.Ticker('ACP')
+Amzn_info_df = Amazon.get_info()
+print(Amzn_info_df)
