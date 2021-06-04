@@ -131,32 +131,43 @@ for stock in stk_list:
 
 print(Overview_df)
 
+empty_df = pd.DataFrame()
+def create_df(text):
+    pd.DataFrame() = text
+create_df(df10)
+
 
 # EPS data
 
-EPS_data = pd.DataFrame()
-
-for stock in stk_list:
-    base_url = 'https://www.alphavantage.co/query?'
-    params = {'function': 'Earnings',
+empty_df = pd.DataFrame()
+def import_data(fnc_nm, output_reqd, df_nm):
+    empty_df = df_nm
+    for stock in stk_list:
+        time.sleep(1)
+        base_url = 'https://www.alphavantage.co/query?'
+        params = {'function': fnc_nm,
               'symbol': stock,
               'apikey': API_key}
 
-    response = requests.get(base_url, params=params)
+        response = requests.get(base_url, params=params)
 
-    output = response.json()
-    Temp_data = pd.DataFrame(output['quarterlyEarnings'])
-    Temp_data['Symbol'] = output['symbol']
-    EPS_data = EPS_data.append(Temp_data, ignore_index=True)
+        output = response.json()
+        Temp_data = pd.DataFrame(output[output_reqd])
+        Temp_data['Symbol'] = output['symbol']
+        df_nm = df_nm.append(Temp_data, ignore_index=True)
 
-print(EPS_data)
+import_data('EARNINGS', 'quarterlyEarnings', EPS_output)
+
+'quarterlyEarnings'
 
 
-#
+# Income Statement
 
+Temp_data = pd.DataFrame()
 inc_st_data = pd.DataFrame()
 
 for stock in stk_list:
+    time.sleep(1)
     base_url = 'https://www.alphavantage.co/query?'
     params = {'function': 'INCOME_STATEMENT',
               'symbol': stock,
@@ -165,11 +176,54 @@ for stock in stk_list:
     response = requests.get(base_url, params=params)
 
     output = response.json()
-    Temp_data = pd.DataFrame(output['quarterlyEarnings'])
+    Temp_data = pd.DataFrame(output['quarterlyReports'])
     Temp_data['Symbol'] = output['symbol']
     inc_st_data = inc_st_data.append(Temp_data, ignore_index=True)
 
-print(output)
+print(inc_st_data)
 
 
+# Balance Sheet
 
+Temp_data = pd.DataFrame()
+BS_data = pd.DataFrame()
+
+for stock in stk_list:
+    time.sleep(1)
+    base_url = 'https://www.alphavantage.co/query?'
+    params = {'function': 'BALANCE_SHEET',
+              'symbol': stock,
+              'apikey': API_key}
+
+    response = requests.get(base_url, params=params)
+
+    output = response.json()
+    Temp_data = pd.DataFrame(output['quarterlyReports'])
+    Temp_data['Symbol'] = output['symbol']
+    BS_data = BS_data.append(Temp_data, ignore_index=True)
+
+print(BS_data)
+
+print(BS_data[['fiscalDateEnding', 'Symbol', 'totalAssets','inventory', 'goodwill']])
+
+
+# Cash flow
+
+Temp_data = pd.DataFrame()
+CF_data = pd.DataFrame()
+
+for stock in stk_list:
+    time.sleep(1)
+    base_url = 'https://www.alphavantage.co/query?'
+    params = {'function': 'BALANCE_SHEET',
+              'symbol': stock,
+              'apikey': API_key}
+
+    response = requests.get(base_url, params=params)
+
+    output = response.json()
+    Temp_data = pd.DataFrame(output['quarterlyReports'])
+    Temp_data['Symbol'] = output['symbol']
+    CF_data = CF_data.append(Temp_data, ignore_index=True)
+
+print(CF_data)
