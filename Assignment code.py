@@ -111,15 +111,20 @@ for stock in upd_stock_list:
     response = requests.get(base_url, params=params)
 
     output = response.json()
-    Temp_data_df = pd.DataFrame(list(output.values())).transpose()
-    Temp_data_df.columns = [list(output.keys())]
-    Temp_data_df = Temp_data_df[columns]
+    if output == {}:
+        Temp_data_df = pd.DataFrame()
+    else:
+        Temp_data_df = pd.DataFrame(list(output.values())).transpose()
+        Temp_data_df.columns = [list(output.keys())]
+        Temp_data_df = Temp_data_df[columns]
 
     Overview_df = Overview_df.append(Temp_data_df, ignore_index=True)
 
 print(Overview_df)
 
-print(stk_list)
+stk_list = ['TSLA','AMZN']
+
+
 
 # EPS
 Temp_data = pd.DataFrame()
@@ -136,6 +141,7 @@ for stock in stk_list:
     output = response.json()
     Temp_data = pd.DataFrame(output['quarterlyEarnings'])
     Temp_data['Symbol'] = output['symbol']
+    Temp_data = Temp_data.loc[Temp_data['fiscalDateEnding'] > '2014-11-30']
     eps_data = eps_data.append(Temp_data, ignore_index=True)
 
 print(eps_data)
@@ -241,23 +247,26 @@ monthly_prices[['dt' , '5. adjusted close' , 'Symbol']]
 Overview_df = pd.DataFrame()
 columns = ['Symbol', 'AssetType', 'Name', 'Exchange',  'Currency', 'Country', 'Sector', 'Industry']
 
-for stock in upd_stock_list:
-    time.sleep(1)
-    base_url = 'https://www.alphavantage.co/query?'
-    params = {'function': 'CASH_FLOW',
+
+base_url = 'https://www.alphavantage.co/query?'
+params = {'function': 'OVERVIEW',
               'symbol': 'ACP',
               'apikey': API_key}
 
-    response = requests.get(base_url, params=params)
+response = requests.get(base_url, params=params)
 
-    output = response.json()
+output = response.json()
+
+if output == {}:
+    Temp_data_df = pd.DataFrame()
+else:
     Temp_data_df = pd.DataFrame(list(output.values())).transpose()
     Temp_data_df.columns = [list(output.keys())]
     Temp_data_df = Temp_data_df[columns]
 
-    Overview_df = Overview_df.append(Temp_data_df, ignore_index=True)
+Overview_df = Overview_df.append(Temp_data_df, ignore_index=True)
 
-print(output)
+print(Overview_df)
 
 import yfinance as yf
 Amazon = yf.Ticker('ACP')
