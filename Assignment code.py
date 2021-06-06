@@ -101,6 +101,8 @@ API_key  = "OSPJN1YHMULW3OEO"
 Overview_df = pd.DataFrame()
 columns = ['Symbol', 'AssetType', 'Name', 'Exchange',  'Currency', 'Country', 'Sector', 'Industry']
 
+
+
 for stock in upd_stock_list:
     time.sleep(1)
     base_url = 'https://www.alphavantage.co/query?'
@@ -111,7 +113,7 @@ for stock in upd_stock_list:
     response = requests.get(base_url, params=params)
 
     output = response.json()
-    if output == {}:
+    if output == {} or list(output.keys())[0] == 'Error Message':
         Temp_data_df = pd.DataFrame()
     else:
         Temp_data_df = pd.DataFrame(list(output.values())).transpose()
@@ -122,15 +124,18 @@ for stock in upd_stock_list:
 
 print(Overview_df)
 
-stk_list = ['TSLA','AMZN']
 
+# Write out the CSV
+Overview_df.to_csv(r'Files\Overview_df.csv', index=False, header=True)
+
+stk_list = ['AMZN', 'TSLA']
+print(stk_list)
 
 
 # EPS
 Temp_data = pd.DataFrame()
 eps_data = pd.DataFrame()
-for stock in stk_list:
-    time.sleep(1)
+for stock in upd_stock_list:
     base_url = 'https://www.alphavantage.co/query?'
     params = {'function': 'EARNINGS',
               'symbol': stock,
@@ -139,21 +144,29 @@ for stock in stk_list:
     response = requests.get(base_url, params=params)
 
     output = response.json()
-    Temp_data = pd.DataFrame(output['quarterlyEarnings'])
-    Temp_data['Symbol'] = output['symbol']
-    Temp_data = Temp_data.loc[Temp_data['fiscalDateEnding'] > '2014-11-30']
+    if output == {} or list(output.keys())[0] == 'Error Message':
+        Temp_data = pd.DataFrame()
+    else:
+        Temp_data = pd.DataFrame(output['quarterlyEarnings'])
+        Temp_data['Symbol'] = output['symbol']
+
     eps_data = eps_data.append(Temp_data, ignore_index=True)
+    eps_data = eps_data.loc[eps_data['fiscalDateEnding'] > '2014-11-30']
 
 print(eps_data)
-eps_data[['fiscalDateEnding' , 'Symbol']]
+
+# Write out the CSV
+eps_data.to_csv(r'Files\eps_data.csv', index=False, header=True)
+
+upd_stock_list[699]
 
 # Income Statement
 
 Temp_data = pd.DataFrame()
 inc_st_data = pd.DataFrame()
 
-for stock in stk_list:
-    time.sleep(1)
+for stock in upd_stock_list:
+    time.sleep(0.75)
     base_url = 'https://www.alphavantage.co/query?'
     params = {'function': 'INCOME_STATEMENT',
               'symbol': stock,
@@ -162,20 +175,28 @@ for stock in stk_list:
     response = requests.get(base_url, params=params)
 
     output = response.json()
-    Temp_data = pd.DataFrame(output['quarterlyReports'])
-    Temp_data['Symbol'] = output['symbol']
+    if output == {}  or list(output.keys())[0] == 'Error Message' :
+        Temp_data = pd.DataFrame()
+    else:
+        Temp_data = pd.DataFrame(output['quarterlyReports'])
+        Temp_data['Symbol'] = output['symbol']
+
     inc_st_data = inc_st_data.append(Temp_data, ignore_index=True)
 
 print(inc_st_data)
-inc_st_data[['fiscalDateEnding' , 'Symbol']]
+
+
+
+# Write out the CSV
+inc_st_data.to_csv(r'Files\inc_st_data.csv', index=False, header=True)
 
 # Balance Sheet
 
 Temp_data = pd.DataFrame()
 BS_data = pd.DataFrame()
 
-for stock in stk_list:
-    time.sleep(1)
+for stock in upd_stock_list:
+    time.sleep(0.75)
     base_url = 'https://www.alphavantage.co/query?'
     params = {'function': 'BALANCE_SHEET',
               'symbol': stock,
@@ -184,22 +205,29 @@ for stock in stk_list:
     response = requests.get(base_url, params=params)
 
     output = response.json()
-    Temp_data = pd.DataFrame(output['quarterlyReports'])
-    Temp_data['Symbol'] = output['symbol']
+    if output == {}  or list(output.keys())[0] == 'Error Message':
+        Temp_data = pd.DataFrame()
+    else:
+        Temp_data = pd.DataFrame(output['quarterlyReports'])
+        Temp_data['Symbol'] = output['symbol']
+
     BS_data = BS_data.append(Temp_data, ignore_index=True)
 
 print(BS_data)
 
-BS_data[['fiscalDateEnding' , 'Symbol']]
+# BS_data[['fiscalDateEnding' , 'Symbol']]
 
+
+# Write out the CSV
+BS_data.to_csv(r'Files\BS_data.csv', index=False, header=True)
 
 # Cash flow
 
 Temp_data = pd.DataFrame()
 CF_data = pd.DataFrame()
 
-for stock in stk_list:
-    time.sleep(1)
+for stock in upd_stock_list:
+    time.sleep(0.75)
     base_url = 'https://www.alphavantage.co/query?'
     params = {'function': 'CASH_FLOW',
               'symbol': stock,
@@ -208,20 +236,31 @@ for stock in stk_list:
     response = requests.get(base_url, params=params)
 
     output = response.json()
-    Temp_data = pd.DataFrame(output['quarterlyReports'])
-    Temp_data['Symbol'] = output['symbol']
+    if output == {} or list(output.keys())[0] == 'Error Message':
+        Temp_data = pd.DataFrame()
+    else:
+        Temp_data = pd.DataFrame(output['quarterlyReports'])
+        Temp_data['Symbol'] = output['symbol']
+
     CF_data = CF_data.append(Temp_data, ignore_index=True)
 
 print(CF_data)
 
+# Write out the CSV
+CF_data.to_csv(r'Files\CF_data.csv', index=False, header=True)
+
+print(Temp_data)
 
 # Monthly stock prices
+
+upd_stock_list1 = upd_stock_list[5780:]
+print(upd_stock_list1)
 
 Temp_data = pd.DataFrame()
 monthly_prices = pd.DataFrame()
 
-for stock in stk_list:
-    time.sleep(1)
+for stock in upd_stock_list1:
+    time.sleep(0.75)
     base_url = 'https://www.alphavantage.co/query?'
     params = {'function': 'TIME_SERIES_MONTHLY_ADJUSTED',
               'outputsize' : 'full',
@@ -231,44 +270,45 @@ for stock in stk_list:
     response = requests.get(base_url, params=params)
 
     output = response.json()
-    Temp_data = pd.DataFrame(output['Monthly Adjusted Time Series']).transpose().rename_axis('dt').reset_index()
-    Temp_data['Symbol'] = stock
-    Temp_data = Temp_data.loc[Temp_data['dt'] > '2014-11-30']
+    if output == {} or list(output.keys())[0] == 'Error Message':
+        Temp_data = pd.DataFrame()
+    else:
+        Temp_data = pd.DataFrame(output['Monthly Adjusted Time Series']).transpose().rename_axis('dt').reset_index()
+        Temp_data['Symbol'] = stock
+
     monthly_prices = monthly_prices.append(Temp_data, ignore_index=True)
+    monthly_prices = monthly_prices.loc[monthly_prices['dt'] > '2014-11-30']
 
 print(monthly_prices)
 
-monthly_prices.columns
 
-monthly_prices[['dt' , '5. adjusted close' , 'Symbol']]
+# Write out the CSV
+monthly_prices.to_csv(r'Files\monthly_prices.csv', index=False, header=True)
+
+monthly_prices2 = monthly_prices
+print(monthly_prices2)
 
 
 
-Overview_df = pd.DataFrame()
-columns = ['Symbol', 'AssetType', 'Name', 'Exchange',  'Currency', 'Country', 'Sector', 'Industry']
+upd_stock_list[699]
 
+Temp_data = pd.DataFrame()
+inc_st_data = pd.DataFrame()
 
 base_url = 'https://www.alphavantage.co/query?'
-params = {'function': 'OVERVIEW',
-              'symbol': 'ACP',
-              'apikey': API_key}
+params = {'function': 'CASH_FLOW',
+          'symbol': 'CYAD',
+          'apikey': API_key}
 
 response = requests.get(base_url, params=params)
 
 output = response.json()
-
-if output == {}:
-    Temp_data_df = pd.DataFrame()
+if output == {} or list(output.keys())[0] == 'Error Message':
+    Temp_data = pd.DataFrame()
 else:
-    Temp_data_df = pd.DataFrame(list(output.values())).transpose()
-    Temp_data_df.columns = [list(output.keys())]
-    Temp_data_df = Temp_data_df[columns]
+    Temp_data = pd.DataFrame(output['quarterlyReports'])
+    Temp_data['Symbol'] = output['symbol']
 
-Overview_df = Overview_df.append(Temp_data_df, ignore_index=True)
+print(Temp_data)
 
-print(Overview_df)
-
-import yfinance as yf
-Amazon = yf.Ticker('ACP')
-Amzn_info_df = Amazon.get_info()
-print(Amzn_info_df)
+upd_stock_list[624]
