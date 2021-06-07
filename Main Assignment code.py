@@ -96,3 +96,14 @@ company_overview_upd.shape # updated file contains 5,082 stocks as expected
 
 # Join each of the tables
 
+Comp_eps_data = pd.merge(company_overview_upd, eps_data, how='left', on='Symbol')
+
+
+print(Comp_eps_data.loc[Comp_eps_data['Symbol'] == 'ZYXI', ['Symbol', 'fiscalDateEnding','reportedDate']])
+
+print(pd.DataFrame(eps_data['reportedDate'].unique()))
+['Symbol', 'fiscalDateEnding','reportedDate']
+
+Comp_eps_data.columns
+print(type(Comp_eps_data))
+
