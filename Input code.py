@@ -151,7 +151,7 @@ for stock in upd_stock_list:
 
     Overview_df = Overview_df.append(Temp_data_df, ignore_index=True)
 
-print(Overview_df) # 5,919 stocks
+print(Overview_df)  # 5,919 stocks
 
 # Write out the CSV - to a location on the C drive
 Overview_df.to_csv(r'Files\Overview_df.csv', index=False, header=True)
