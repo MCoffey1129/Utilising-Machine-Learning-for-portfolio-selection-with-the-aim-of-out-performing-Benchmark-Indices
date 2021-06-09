@@ -10,6 +10,9 @@
 # Packages
 import pandas as pd
 import time as time
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from datetime import timedelta
 
 
@@ -42,7 +45,11 @@ def unique_symbol(input_table):
     output = pd.DataFrame(input_table['Symbol'].unique(), columns=['Symbol'])
     return output
 
-
+# Function which converts a string value of "none" to missing
+# @timer
+# def string_conv(input_table):
+#     """Function which converts a string value of "none" to missing"""
+#     return input_table = inpu
 
 ###############################################################################################################
 # Section 2.1 - Exploratory data analysis
@@ -124,17 +131,75 @@ company_overview_dt.head()
 company_overview_dt.tail()
 
 
-#
+# eps_data file
 eps_data.head(40)
-eps_data.info()
+eps_data.info()  # the two date fields are saved as objects as are the numeric fields
+eps_data.shape  # 109,888 columns and 8 rows
+
+# Convert the Date fields to dates
 eps_data['fiscalDateEnding'] = pd.to_datetime(eps_data['fiscalDateEnding']).dt.to_period('M')
 eps_data['reportedDate'] = pd.to_datetime(eps_data['reportedDate']).dt.to_period('M')
 
-delta = timedelta(years=1)
+# Create the date field which we will later join on to the overall dataset
+eps_data.loc[(eps_data['reportedDate'].dt.month == 12) | (eps_data['reportedDate'].dt.month == 11),
+             'dt_yr'] = eps_data['reportedDate'].dt.year + 1
 
-eps_data.loc[(eps_data['reportedDate'].dt.month == 12) | (eps_data['reportedDate'].dt.month == 11) |
-             (eps_data['reportedDate'].dt.month == 10), 'dt'] = eps_data['reportedDate'].dt.month + delta
+eps_data.loc[(eps_data['reportedDate'].dt.month == 12) | (eps_data['reportedDate'].dt.month == 11),
+             'dt_month'] = 1
 
-print(eps_data['reportedDate'].dt.month)
+eps_data.loc[(eps_data['reportedDate'].dt.month == 6) | (eps_data['reportedDate'].dt.month == 5),
+             'dt_month'] = 7
 
-print(eps_data['reportedDate'].month)
+eps_data['dt_yr'].fillna(eps_data['reportedDate'].dt.year, inplace=True)
+eps_data['dt_month'].fillna(eps_data['reportedDate'].dt.month, inplace=True)
+
+
+eps_data['dt_str'] = eps_data['dt_yr'].astype(int).map(str) + "-" + eps_data['dt_month'].astype(int).map(str)
+eps_data.head(40)
+
+eps_data['dt'] = pd.to_datetime(eps_data['dt_str']).dt.to_period('M')
+
+eps_data.index = eps_data['dt']
+eps_data.head(40)
+
+eps_data.shape  # 109,888 rows (no change) but there are 11 columns
+eps_data.columns # 4 columns which are not required
+
+eps_data = eps_data.drop(columns=eps_data.columns[[7, 8, 9, 10]])
+eps_data.shape  # 109,888 rows and 7 columns as we started with
+eps_data.columns
+eps_data.info()  # The numeric fields are still stored as characters
+
+# Convert character variables to numeric
+
+eps_data = eps_data.replace('None', np.nan)
+
+eps_data[['reportedEPS', 'estimatedEPS', 'surprise', 'surprisePercentage']] = \
+    eps_data[['reportedEPS', 'estimatedEPS', 'surprise', 'surprisePercentage']].astype(float)
+
+eps_data.info()  # Each of the fields are saved as the correct datatype
+
+# Get the lagged Earnings results
+corr = eps_data.loc[eps_data['Symbol'] =='ADM'].corr()
+
+# Plot heatmap of correlation matrix
+# The reported EPS and estimated EPS are 99% correlated and there is no extra value including both in our model
+# given that we have the surprise (which is simply reported - estimated) and we have the surprisePercentage
+sns.heatmap(corr, annot= True)
+plt.yticks(rotation=0, size = 14)
+plt.xticks(rotation=90, size = 14)
+plt.tight_layout()
+plt.show()
+
+
+#
+eps_data['reportedEPS_1Q_lag'] = eps_data['reportedEPS'].shift(-1)
+eps_data['estimatedEPS_1Q_lag'] = eps_data['estimatedEPS'].shift(-1)
+eps_data['surprise_1Q_lag'] = eps_data['surprisePercentage'].shift(-1)
+eps_data['Symbol_lag'] = eps_data['Symbol'].shift(-1)
+
+columns = ['reportedEPS', 'estimatedEPS', 'surprisePercentage', 'Symbol' ]
+for i =
+
+
+
