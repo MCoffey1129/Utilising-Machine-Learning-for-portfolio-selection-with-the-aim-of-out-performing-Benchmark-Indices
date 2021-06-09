@@ -10,6 +10,8 @@
 # Packages
 import pandas as pd
 import time as time
+from datetime import timedelta
+
 
 
 # Functions
@@ -36,8 +38,10 @@ def timer(func):
 # Function for returning a pandas dataframe containing unique symbols for the input table
 @timer
 def unique_symbol(input_table):
+    """A function for returning a pandas dataframe containing unique symbols for the input table"""
     output = pd.DataFrame(input_table['Symbol'].unique(), columns=['Symbol'])
     return output
+
 
 
 ###############################################################################################################
@@ -94,16 +98,43 @@ symbols_in_all_files.shape # Check complete that there are 5,082 stocks in this 
 company_overview_upd = pd.merge(company_overview, symbols_in_all_files, how='inner', on='Symbol')
 company_overview_upd.shape # updated file contains 5,082 stocks as expected
 
-# Join each of the tables
 
-Comp_eps_data = pd.merge(company_overview_upd, eps_data, how='left', on='Symbol')
+# Update our initial dataframe such that it is in the correct form required for modelling.
+# As the approach is a 6 month hold and sell strategy we want to get the stock information off quarter
+# so that we do not have any issues aro....
 
 
-print(Comp_eps_data.loc[Comp_eps_data['Symbol'] == 'ZYXI', ['Symbol', 'fiscalDateEnding','reportedDate']])
+dates = ['2021-01', '2020-07', '2020-01', '2019-07', '2019-01', '2018-07', '2018-01', '2017-07']
+company_overview_dt = pd.DataFrame()
 
-print(pd.DataFrame(eps_data['reportedDate'].unique()))
-['Symbol', 'fiscalDateEnding','reportedDate']
+for i in dates:
+    company_overview_upd['dt'] = i
+    company_overview_dt = company_overview_dt.append(company_overview_upd, ignore_index=True)
 
-Comp_eps_data.columns
-print(type(Comp_eps_data))
+company_overview_dt.head()
+company_overview_dt.tail()
+company_overview_dt.shape # 40,656 rows (5,082 * 8 timeframes), the for loop was run correctly
+company_overview_dt.info()  # dt is an object, we want this to be a datetime and we want to set it as our index.
 
+
+# Change the dt field to a datetime object and set it as the index
+company_overview_dt.index = pd.to_datetime(company_overview_dt['dt']).dt.to_period('M')
+company_overview_dt = company_overview_dt.drop(columns=company_overview_dt.columns[8])  # drop the second dt field
+company_overview_dt.head()
+company_overview_dt.tail()
+
+
+#
+eps_data.head(40)
+eps_data.info()
+eps_data['fiscalDateEnding'] = pd.to_datetime(eps_data['fiscalDateEnding']).dt.to_period('M')
+eps_data['reportedDate'] = pd.to_datetime(eps_data['reportedDate']).dt.to_period('M')
+
+delta = timedelta(years=1)
+
+eps_data.loc[(eps_data['reportedDate'].dt.month == 12) | (eps_data['reportedDate'].dt.month == 11) |
+             (eps_data['reportedDate'].dt.month == 10), 'dt'] = eps_data['reportedDate'].dt.month + delta
+
+print(eps_data['reportedDate'].dt.month)
+
+print(eps_data['reportedDate'].month)
