@@ -40,10 +40,15 @@ def timer(func):
 
 # Function for returning a pandas dataframe containing unique symbols for the input table
 @timer
-def unique_symbol(input_table):
-    """A function for returning a pandas dataframe containing unique symbols for the input table"""
-    output = pd.DataFrame(input_table['Symbol'].unique(), columns=['Symbol'])
+def unique_column(input_table,column):
+    """A function for returning a pandas dataframe containing unique column for the input table"""
+    output = pd.DataFrame(input_table[column].unique(), columns=[column])
     return output
+
+# Create a
+@timer
+def dts_red(input_table):
+
 
 # Function which converts a string value of "none" to missing
 # @timer
@@ -80,12 +85,12 @@ cf_data = pd.read_csv(r'Files\CF_data.csv')
 monthly_stock_prices = pd.read_csv(r'Files\monthly_prices.csv')
 
 # Pull in the unique stock symbols for each table (time taken for each call of the function <0.0s)
-co_symbol_unique = unique_symbol(company_overview)
-eps_symbol_unique = unique_symbol(eps_data)
-inc_st_symbol_unique = unique_symbol(inc_st_data)
-bs_symbol_unique = unique_symbol(bs_data)
-cf_symbol_unique = unique_symbol(cf_data)
-sp_symbol_unique = unique_symbol(monthly_stock_prices)
+co_symbol_unique = unique_column(company_overview, 'Symbol')
+eps_symbol_unique = unique_column(eps_data, 'Symbol')
+inc_st_symbol_unique = unique_column(inc_st_data, 'Symbol')
+bs_symbol_unique = unique_column(bs_data, 'Symbol')
+cf_symbol_unique = unique_column(cf_data, 'Symbol')
+sp_symbol_unique = unique_column(monthly_stock_prices, 'Symbol')
 
 # We only want to keep stocks which are contained in each file, in order to achieve this we complete run an
 # inner join on each of the datasets containing the unique stock symbols
@@ -112,6 +117,12 @@ company_overview_upd.shape # updated file contains 5,082 stocks as expected
 
 
 dates = ['2021-01', '2020-07', '2020-01', '2019-07', '2019-01', '2018-07', '2018-01', '2017-07']
+dates_df = pd.DataFrame(dates, columns = ['dt'])
+dates_df.index = pd.to_datetime(dates_df['dt']).dt.to_period('M')
+dates_df = dates_df.drop(columns=dates_df.columns[0])  # drop the second dt field
+print(dates_df)
+dates_df.columns
+
 company_overview_dt = pd.DataFrame()
 
 for i in dates:
@@ -131,7 +142,18 @@ company_overview_dt.head()
 company_overview_dt.tail()
 
 
-# eps_data file
+##################################################################################################################
+# Section 2.2 - Financial Results data including earnings, income statement, balance sheet and cash flow statement
+##################################################################################################################
+
+
+financial_results = \
+    pd.merge(pd.merge(pd.merge(eps_data, inc_st_data, how='inner', on='fiscalDateEnding')
+                                        , bs_data, how='inner', on='fiscalDateEnding')
+                                    , cf_data, how='inner', on='fiscalDateEnding')
+
+financial_results.head(40)
+
 eps_data.head(40)
 eps_data.info()  # the two date fields are saved as objects as are the numeric fields
 eps_data.shape  # 109,888 columns and 8 rows
@@ -192,14 +214,27 @@ plt.tight_layout()
 plt.show()
 
 
-#
-eps_data['reportedEPS_1Q_lag'] = eps_data['reportedEPS'].shift(-1)
-eps_data['estimatedEPS_1Q_lag'] = eps_data['estimatedEPS'].shift(-1)
-eps_data['surprise_1Q_lag'] = eps_data['surprisePercentage'].shift(-1)
-eps_data['Symbol_lag'] = eps_data['Symbol'].shift(-1)
+# Get the lagged EPS data for each of the numeric columns
 
-columns = ['reportedEPS', 'estimatedEPS', 'surprisePercentage', 'Symbol' ]
-for i =
+columns = ['reportedEPS', 'estimatedEPS', 'surprisePercentage']
+for i in columns:
+    for j in range(1, 5):
+        eps_data[i + '_' + str(j) + 'Q_lag'] = eps_data[i].shift(-j)
+        eps_data.loc[eps_data['Symbol'].shift(-j) != eps_data['Symbol'], i + '_' + str(j) + 'Q_lag'] = np.nan
+
+eps_data.head(30)
+eps_data.columns
+
+
+eps_data = pd.merge(eps_data, dates_df, left_index=True , right_index=True )
+eps_data.head(20)
+eps_data.tail(20)
+
+eps_data.index.unique()  # 8 unique timepoints as expected
+
+# Check for issues
+print(eps_data.loc[eps_data['Symbol'] == 'ZNTL', ['surprisePercentage', 'surprisePercentage_1Q_lag', 'surprisePercentage_2Q_lag'
+, 'surprisePercentage_3Q_lag' , 'surprisePercentage_4Q_lag']])
 
 
 
