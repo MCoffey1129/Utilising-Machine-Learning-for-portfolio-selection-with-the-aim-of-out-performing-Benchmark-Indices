@@ -286,16 +286,34 @@ financial_results_reorder.shape  # the number of columns are unchanged at 454 as
 
 monthly_stock_prices.head(20)
 
-monthly_stock_prices['dt_'] = pd.to_datetime(monthly_stock_prices['dt'], format="%d/%m/%Y").dt.to_period('M')
-monthly_stock_prices['dt_6mth_plus'] = pd.to_datetime(monthly_stock_prices['dt'], format="%d/%m/%Y").dt.to_period('M') - 6
-monthly_stock_prices['dt_5mth_plus'] = pd.to_datetime(monthly_stock_prices['dt'], format="%d/%m/%Y").dt.to_period('M') - 5
+monthly_stock_prices['dt_m'] = pd.to_datetime(monthly_stock_prices['dt'], format="%d/%m/%Y").dt.to_period('M')
 
-monthly_stock_prices.loc[monthly_stock_prices['dt_'] == '2021-06',
-                          ['dt_join']] = \
-    monthly_stock_prices['dt_5mth_plus']
-
-monthly_stock_prices.loc[monthly_stock_prices['dt_'] != '2021-06',
-                          ['dt_join']] = \
-    monthly_stock_prices['dt_6mth_plus']
+# monthly_stock_prices.loc[monthly_stock_prices['dt_'] == '2021-06',
+#                           ['dt_join']] = \
+#     monthly_stock_prices['dt_5mth_plus']
+#
+# monthly_stock_prices.loc[monthly_stock_prices['dt_'] != '2021-06',
+#                           ['dt_join']] = \
+#     monthly_stock_prices['dt_6mth_plus']
 
 print(monthly_stock_prices)
+
+monthly_stock_prices['close_price'] = monthly_stock_prices["5. adjusted close"].astype(float)
+stock_prices = monthly_stock_prices[['dt', 'dt_m', 'Symbol', 'close_price']]
+
+print(stock_prices)
+
+#columns = ['close_price']
+
+for j in range(1, 5):
+    # Get the historic and future stock prices on the stocks
+    stock_prices['close_price' + '_' + str(j) + 'M_lag'] = stock_prices['close_price'].shift(-j)
+    # The below code ensures that we are not taking in stock_prices from an incorrect symbol
+    # stock_prices.loc[stock_prices['Symbol'].shift(-j) !=
+                     # stock_prices['Symbol'], 'close_price' + '_' + str(j) + 'M_lag'] = np.nan
+
+print(stock_prices)
+stock_prices.info()
+
+stock_prices['close_price_1M_lag'] = stock_prices['close_price'].shift(-1)
+financial_results_reorder['close_price' + '_' + '1' + 'Q_lag'] = financial_results_reorder[i].shift(-j)
