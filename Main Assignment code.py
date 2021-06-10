@@ -14,7 +14,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import timedelta
-
+import copy
 
 # Functions
 
@@ -288,32 +288,47 @@ monthly_stock_prices.head(20)
 
 monthly_stock_prices['dt_m'] = pd.to_datetime(monthly_stock_prices['dt'], format="%d/%m/%Y").dt.to_period('M')
 
-# monthly_stock_prices.loc[monthly_stock_prices['dt_'] == '2021-06',
-#                           ['dt_join']] = \
-#     monthly_stock_prices['dt_5mth_plus']
-#
-# monthly_stock_prices.loc[monthly_stock_prices['dt_'] != '2021-06',
-#                           ['dt_join']] = \
-#     monthly_stock_prices['dt_6mth_plus']
-
-print(monthly_stock_prices)
 
 monthly_stock_prices['close_price'] = monthly_stock_prices["5. adjusted close"].astype(float)
 stock_prices = monthly_stock_prices[['dt', 'dt_m', 'Symbol', 'close_price']]
+stk_prices = copy.deepcopy(stock_prices)
 
-print(stock_prices)
+print(stk_prices)
 
 #columns = ['close_price']
 
-for j in range(1, 5):
-    # Get the historic and future stock prices on the stocks
-    stock_prices['close_price' + '_' + str(j) + 'M_lag'] = stock_prices['close_price'].shift(-j)
-    # The below code ensures that we are not taking in stock_prices from an incorrect symbol
-    # stock_prices.loc[stock_prices['Symbol'].shift(-j) !=
-                     # stock_prices['Symbol'], 'close_price' + '_' + str(j) + 'M_lag'] = np.nan
+for j in [1, 3, 6, 12, -5, -6]:
+    # Get the historic and future stock prices
+    stk_prices['close_price' + '_' + str(j) + 'M_lag'] = stk_prices['close_price'].shift(-j)
+    # The below code ensures that we are not taking in stk_prices from an incorrect symbol
+    stk_prices.loc[stk_prices['Symbol'].shift(-j) !=
+                     stk_prices['Symbol'], 'close_price' + '_' + str(j) + 'M_lag'] = np.nan
 
-print(stock_prices)
-stock_prices.info()
+print(stk_prices)
+stk_prices.info()
 
-stock_prices['close_price_1M_lag'] = stock_prices['close_price'].shift(-1)
-financial_results_reorder['close_price' + '_' + '1' + 'Q_lag'] = financial_results_reorder[i].shift(-j)
+# Checks
+stk_prices[['dt', 'dt_m', 'Symbol', 'close_price' , 'close_price_-5M_lag', 'close_price_-6M_lag']].tail(100)
+stk_prices.columns
+
+
+# Create the forecasted stock price - please note we have only 5 months of forecasted stock information
+# for trades made in Jan '21
+stk_prices.loc[stk_prices['dt_m'] == '2021-01', 'future_price'] = stk_prices['close_price_-5M_lag']
+stk_prices.loc[stk_prices['dt_m'] != '2021-01', 'future_price'] = stk_prices['close_price_-6M_lag']
+stk_prices.tail(100)
+
+# Make dt_m the index
+stk_prices.index = stk_prices['dt_m']
+
+
+# Drop unneeded columns
+stk_prices = stk_prices.drop(['dt', 'dt_m', 'close_price_-5M_lag', 'close_price_-6M_lag'], axis=1)
+stk_prices.head(50)
+stk_prices.columns
+
+# Keep only the dates which are required
+stk_prices = pd.merge(stk_prices, dates_df, left_index=True, right_index=True)
+print(stk_prices)
+stk_prices.index.unique()  # 8 unique timepoints as expected
+
