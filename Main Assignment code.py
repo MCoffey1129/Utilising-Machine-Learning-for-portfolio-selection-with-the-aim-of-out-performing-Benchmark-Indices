@@ -27,6 +27,7 @@ from sklearn.linear_model import Ridge
 from sklearn.model_selection import cross_val_score
 import statsmodels.api as sm
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
 
 # Functions
 
@@ -546,39 +547,40 @@ max(lasso_coef) # max coefficient is 0.0
 
 
 # Linear regression model
-X_train_lr = sm.add_constant(X_train)
-X_test_lr = sm.add_constant(X_test)
 
-# Create the linear model and complete the least squares fit
-model = sm.OLS(y_train, X_train_lr)
-results = model.fit()  # fit the model, this takes awhile!
-# print(results.summary())
+# Build model
+lin_reg = LinearRegression()
+lin_reg.fit(X_train, y_train)
 
-# Features with p <= 0.05 are typically considered significantly different from 0
-print(results.pvalues)
+lin_reg.score(X_train, y_train)  # 1.6%
+lin_reg.score(X_test, y_test) #  << 0%
 
-# Make predictions from our model for train and test sets
-y_train_pred = results.predict(X_train_lr)
-y_test_pred = results.predict(X_test_lr)
 
-# Scatter the predictions vs the targets with 20% opacity
-plt.scatter(y_train_pred, y_train, alpha=0.2, color='b', label='train')
-plt.scatter(y_test_pred, y_test, alpha=0.2, color='r', label='test')
+# Display two vectors, the y predicted v y train
+y_train_pred = pd.DataFrame(lin_reg.predict(X_train), columns=['y_train_pred'])
+lg_reg_pred =  pd.concat([y_train, y_train_pred.set_index(y_train.index)], axis=1)
+print(lg_reg_pred)
 
-# Plot the perfect prediction line
-xmin, xmax = plt.xlim()
-plt.plot(np.arange(xmin, xmax, 0.01), np.arange(xmin, xmax, 0.01), c='k')
-
-# Set the axis labels and show the plot
-plt.xlabel('predictions')
-plt.ylabel('actual')
-plt.legend()  # show the legend
+# Visually comparing the predicted values for profit versus actual
+sns.scatterplot(data=lg_reg_pred, x='y_train_pred', y='future_price_pc', palette='deep', legend=False)
+plt.xlabel('Predicted Stock Price', size=12)
+plt.ylabel('Actual Stock Price', size=12)
+plt.title("Predicted v Actual Stock Price", fontdict={'size': 16})
+plt.tight_layout()
 plt.show()
+
 
 
 # Run a random forest to check what are the most important features in predicting future stock prices
 rfr = RandomForestRegressor(n_estimators=200, max_depth=3, max_features=4, random_state=42)
-rfr.fit(X_train, y_train)
+X_train_rf = X[X.index < '2019-07'].values
+y_train_rf = y[y.index < '2019-07'].values.ravel()
+X_test_rf = X[X.index == '2019-07'].values
+y_test_rf = y[y.index == '2019-07'].values.ravel()
+print(np.shape(y_train_rf))
+print(y_train_rf)
+rfr.fit(X_train_rf, y_train_rf)
+
 
 # Get feature importances from our random forest model
 importances = rfr.feature_importances_
