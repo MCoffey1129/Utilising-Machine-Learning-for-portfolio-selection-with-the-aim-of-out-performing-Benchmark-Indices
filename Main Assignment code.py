@@ -22,7 +22,11 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn import tree
 from sklearn.metrics import confusion_matrix, accuracy_score
-
+from sklearn.linear_model import Lasso
+from sklearn.linear_model import Ridge
+from sklearn.model_selection import cross_val_score
+import statsmodels.api as sm
+from sklearn.ensemble import RandomForestRegressor
 
 # Functions
 
@@ -506,6 +510,10 @@ mdl_data['estimatedEPS'].isnull().sum()  # no missing values
 mdl_data.fillna(0, inplace=True)
 mdl_data.isnull().sum()  # no missing values
 
+mdl_data.dtypes
+mdl_data.drop(['fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
+mdl_data.shape # updated dataset has 30,567 rows  and 465 columns (467 -2)
+
 
 ##################################################################################################################
 # Section 3.2 - Feature Selection
@@ -518,25 +526,71 @@ mdl_data.isnull().sum()  # no missing values
 
 X = mdl_data.iloc[:,:-1]
 X = pd.get_dummies(data=X, drop_first=True)
-Y = mdl_data.iloc[:,-1:]
+y = mdl_data.iloc[:,-1:]
 
 X_train = X[X.index < '2019-07']
-Y_train = Y[Y.index < '2019-07']
+y_train = y[y.index < '2019-07']
 X_test = X[X.index == '2019-07']
-Y_test = Y[Y.index == '2019-07']
+y_test = y[y.index == '2019-07']
 
 lasso = Lasso(alpha=0.4, normalize=True)
 
 # Fit the regressor to the data
-lasso.fit(X, y)
+lasso.fit(X_train, y_train)
 
 # Compute and print the coefficients
 lasso_coef = lasso.coef_
 print(lasso_coef)
 
-# Plot the coefficients
-plt.plot(range(len(df_columns)), lasso_coef)
-plt.xticks(range(len(df_columns)), df_columns.values, rotation=60)
-plt.margins(0.02)
+max(lasso_coef) # max coefficient is 0.0
+
+
+# Linear regression model
+X_train_lr = sm.add_constant(X_train)
+X_test_lr = sm.add_constant(X_test)
+
+# Create the linear model and complete the least squares fit
+model = sm.OLS(y_train, X_train_lr)
+results = model.fit()  # fit the model, this takes awhile!
+# print(results.summary())
+
+# Features with p <= 0.05 are typically considered significantly different from 0
+print(results.pvalues)
+
+# Make predictions from our model for train and test sets
+y_train_pred = results.predict(X_train_lr)
+y_test_pred = results.predict(X_test_lr)
+
+# Scatter the predictions vs the targets with 20% opacity
+plt.scatter(y_train_pred, y_train, alpha=0.2, color='b', label='train')
+plt.scatter(y_test_pred, y_test, alpha=0.2, color='r', label='test')
+
+# Plot the perfect prediction line
+xmin, xmax = plt.xlim()
+plt.plot(np.arange(xmin, xmax, 0.01), np.arange(xmin, xmax, 0.01), c='k')
+
+# Set the axis labels and show the plot
+plt.xlabel('predictions')
+plt.ylabel('actual')
+plt.legend()  # show the legend
 plt.show()
 
+
+# Run a random forest to check what are the most important features in predicting future stock prices
+rfr = RandomForestRegressor(n_estimators=200, max_depth=3, max_features=4, random_state=42)
+rfr.fit(X_train, y_train)
+
+# Get feature importances from our random forest model
+importances = rfr.feature_importances_
+
+# Get the index of importances from greatest importance to least
+sorted_index = np.argsort(importances)[::-1]
+x = range(len(importances))
+
+# Create tick labels
+labels = np.array(feature_names)[sorted_index]
+plt.bar(x, importances[sorted_index], tick_label=labels)
+
+# Rotate tick labels to vertical
+plt.xticks(rotation=90)
+plt.show()
