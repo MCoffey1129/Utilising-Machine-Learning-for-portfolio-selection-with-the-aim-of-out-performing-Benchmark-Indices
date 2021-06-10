@@ -16,6 +16,12 @@ import seaborn as sns
 from datetime import timedelta
 import copy
 import calendar
+from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV, RandomizedSearchCV
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn import tree
+from sklearn.metrics import confusion_matrix, accuracy_score
 
 
 # Functions
@@ -346,11 +352,20 @@ print(stk_prices)
 # columns = ['close_price']
 
 for j in [1, 3, 6, 12, -5, -6]:
-    # Get the historic and future stock prices
-    stk_prices['close_price' + '_' + str(j) + 'M_lag'] = stk_prices['close_price'].shift(-j)
+    # Get the historic and future stock prices growths
+    if j >= 0:
+        stk_prices['close_price' + '_' + str(j) + 'M_lag_pc'] = \
+            (stk_prices['close_price'] - stk_prices['close_price'].shift(-j)) / stk_prices['close_price'].shift(-j)
+    else:
+        stk_prices['close_price' + '_' + str(j) + 'M_lag'] = stk_prices['close_price'].shift(-j)
+        stk_prices['close_price' + '_' + str(j) + 'M_lag_pc'] = \
+            (stk_prices['close_price'].shift(-j) - stk_prices['close_price']) / stk_prices['close_price']
     # The below code ensures that we are not taking in stk_prices from an incorrect symbol
     stk_prices.loc[stk_prices['Symbol'].shift(-j) !=
+                   stk_prices['Symbol'], 'close_price' + '_' + str(j) + 'M_lag_pc'] = np.nan
+    stk_prices.loc[stk_prices['Symbol'].shift(-j) !=
                    stk_prices['Symbol'], 'close_price' + '_' + str(j) + 'M_lag'] = np.nan
+
 
 print(stk_prices)
 stk_prices.info()
@@ -369,6 +384,8 @@ chk_tbl.head(10)  # I will take the 10 largest values and check the values on ya
 # for trades made in Jan '21
 stk_prices.loc[stk_prices['dt_m'] == '2021-01', 'future_price'] = stk_prices['close_price_-5M_lag']
 stk_prices.loc[stk_prices['dt_m'] != '2021-01', 'future_price'] = stk_prices['close_price_-6M_lag']
+stk_prices.loc[stk_prices['dt_m'] == '2021-01', 'future_price_pc'] = stk_prices['close_price_-5M_lag_pc']
+stk_prices.loc[stk_prices['dt_m'] != '2021-01', 'future_price_pc'] = stk_prices['close_price_-6M_lag_pc']
 stk_prices.tail(100)
 
 # Make dt_m the index
@@ -376,7 +393,9 @@ stk_prices.drop("dt", inplace=True, axis=1)
 stk_prices.index = stk_prices['dt_m'].rename("dt")
 
 # Drop unneeded columns
-stk_prices = stk_prices.drop(['dt_m', 'close_price_-5M_lag', 'close_price_-6M_lag'], axis=1)
+stk_prices = stk_prices.drop(['dt_m', 'close_price_1M_lag', 'close_price_3M_lag', 'close_price_6M_lag',
+                              'close_price_12M_lag', 'close_price_-5M_lag_pc', 'close_price_-6M_lag_pc',
+                             'close_price_-5M_lag', 'close_price_-6M_lag'], axis=1)
 stk_prices.head(50)
 stk_prices.columns
 
@@ -406,7 +425,7 @@ b['diff'] = b['future_price'] - b['close_price']
 print(b.sort_values(by=['diff'], ascending=False))
 
 ##################################################################################################################
-# Section 3.1 - Feature....
+# Section 3.1 - Replacing nulls
 ##################################################################################################################
 
 # Join the three tables together by index
@@ -421,8 +440,8 @@ mdl_data = \
 
 company_overview_dt.shape  # 40,656 rows and 8 columns
 financial_results_reorder.shape  # 31,399 rows and 454 columns
-stk_prices.shape  # 38,078 rows and 8 columns
-mdl_data.shape  # 40,656 rows and 468 columns (454 + 8 + 8 - 2 (Symbol which we are joining on))
+stk_prices.shape  # 38,078 rows and 9 columns
+mdl_data.shape  # 40,656 rows and 469 columns (454 + 8 + 9 - 2 (Symbol which we are joining on))
 
 
 # Handling null values
@@ -444,16 +463,22 @@ mdl_data['Industry'].isnull().sum() # 0 value returned
 
 null_value_pc(mdl_data) # Sector and industry no longer have missing values
 
+# We need to drop the 'future_price' from our model to prevent data leakage
+mdl_data.drop('future_price', axis=1, inplace=True)
+mdl_data.shape  # 40,656 rows and 468 columns (469 - 1)
 
-# The most important null field which needs to be investigated is the target variable which is the 'future_price' field
-# After investigating a number of the fields which are missing I have concluded that the stock prices wer not there
+
+# The most important null field which needs to be investigated is the target variable which is the 'future_price_pc'
+# field
+# After investigating a number of the fields which are missing I have concluded that the stock prices were not there
 # for that timepoint and so the rows should be deleted.
-mdl_data.loc[mdl_data['future_price'].isnull()]
-mdl_data.loc[mdl_data['Symbol'] == 'AAC', ['Symbol', 'close_price', 'future_price']]
+mdl_data.loc[mdl_data['future_price_pc'].isnull()]
+mdl_data.loc[mdl_data['Symbol'] == 'AAC', ['Symbol', 'close_price', 'future_price_pc']]
 
-mdl_data['future_price'].isnull().sum()  #  We are looking to drop 6,266 rows
+
+mdl_data['future_price_pc'].isnull().sum()  #  We are looking to drop 6,266 rows
 mdl_data.shape  # currently 40,656 rows and 468 columns
-mdl_data.dropna(how='all', subset=['future_price'], inplace=True)
+mdl_data.dropna(how='all', subset=['future_price_pc'], inplace=True)
 mdl_data.shape # updated dataset has 34,390 rows (40,656 - 6,266) and 468 columns
 
 
@@ -464,4 +489,54 @@ null_value_pc(mdl_data)
 mdl_data.dropna(how='all', subset=['fiscalDateEnding'], inplace=True)
 mdl_data.shape # updated dataset has 30,567 rows (34,390 - 3,823) and 468 columns
 
+null_value_pc(mdl_data) # drop the reportedCurrency column as we already have a Currency column
+mdl_data.drop('reportedCurrency', axis=1, inplace=True)
+mdl_data.shape # updated dataset has 30,567 rows  and 467 columns (468 -1)
+
+
 null_value_pc(mdl_data)
+# replace the estimated EPS with the reported EPS when missing, surprise and surprise Percentage should then be zero
+
+mdl_data['estimatedEPS'].fillna(mdl_data['reportedEPS'], inplace=True)
+mdl_data['estimatedEPS'].isnull().sum()  # no missing values
+
+
+# Replace all other missing values with 0
+# Revenue, gross profit and other values which were null had very few nulls......
+mdl_data.fillna(0, inplace=True)
+mdl_data.isnull().sum()  # no missing values
+
+
+##################################################################################################################
+# Section 3.2 - Feature Selection
+##################################################################################################################
+
+# The features which we would expect to be important in predicting share price
+# are P/E growth, net margin growth, P/B growth etc. so we would expect that the important features which
+# will come out of a first "very rough" run of the model will be revenue, net profit, market cap etc.
+
+
+X = mdl_data.iloc[:,:-1]
+X = pd.get_dummies(data=X, drop_first=True)
+Y = mdl_data.iloc[:,-1:]
+
+X_train = X[X.index < '2019-07']
+Y_train = Y[Y.index < '2019-07']
+X_test = X[X.index == '2019-07']
+Y_test = Y[Y.index == '2019-07']
+
+lasso = Lasso(alpha=0.4, normalize=True)
+
+# Fit the regressor to the data
+lasso.fit(X, y)
+
+# Compute and print the coefficients
+lasso_coef = lasso.coef_
+print(lasso_coef)
+
+# Plot the coefficients
+plt.plot(range(len(df_columns)), lasso_coef)
+plt.xticks(range(len(df_columns)), df_columns.values, rotation=60)
+plt.margins(0.02)
+plt.show()
+
