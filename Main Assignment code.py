@@ -451,9 +451,17 @@ null_value_pc(mdl_data) # Sector and industry no longer have missing values
 mdl_data.loc[mdl_data['future_price'].isnull()]
 mdl_data.loc[mdl_data['Symbol'] == 'AAC', ['Symbol', 'close_price', 'future_price']]
 
-mdl_data['future_price'].isnull().sum() # We are looking to drop 6,266 rows
+mdl_data['future_price'].isnull().sum()  #  We are looking to drop 6,266 rows
 mdl_data.shape  # currently 40,656 rows and 468 columns
 mdl_data.dropna(how='all', subset=['future_price'], inplace=True)
 mdl_data.shape # updated dataset has 34,390 rows (40,656 - 6,266) and 468 columns
 
 
+null_value_pc(mdl_data)
+# There are 3,823 cases that have a missing 'fiscalDateEnding' and 'reportedDate.' These rows correspond to rows with
+# missing EPS and revenue information and so should be dropped from the model
+
+mdl_data.dropna(how='all', subset=['fiscalDateEnding'], inplace=True)
+mdl_data.shape # updated dataset has 30,567 rows (34,390 - 3,823) and 468 columns
+
+null_value_pc(mdl_data)
