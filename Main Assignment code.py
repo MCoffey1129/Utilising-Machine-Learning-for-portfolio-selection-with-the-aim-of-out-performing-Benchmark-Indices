@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import timedelta
 import copy
+import calendar
+
 
 # Functions
 
@@ -55,6 +57,20 @@ def pd_set_df_view_options(max_rows=1000, max_columns=350, display_width=320):
 
     pd.set_option('display.width', display_width)
 
+
+@timer
+def seaborn_lm_plt(input_table, close_val, future_value):
+    seaborn_tab = input_table.loc[
+        (input_table['close_price'] < close_val) & (input_table['future_price'] < future_value)]
+    sns.lmplot(data=seaborn_tab, x='close_price', y='future_price', hue='month', palette='deep', legend=False,
+               scatter_kws={"s": 10, "alpha": 0.2})
+    plt.xlabel('Close Price', size=12)
+    plt.ylabel('Future Price', size=12)
+    plt.legend(loc='upper left')
+    plt.title("Close Price (< $" + str(close_val) + ")" + " v Future Price (< $" + str(future_value) + ")"
+              , fontdict={'size': 16})
+    plt.tight_layout()
+    plt.show()
 
 # Function which converts a string value of "none" to missing
 # @timer
@@ -288,28 +304,38 @@ monthly_stock_prices.head(20)
 
 monthly_stock_prices['dt_m'] = pd.to_datetime(monthly_stock_prices['dt'], format="%d/%m/%Y").dt.to_period('M')
 
-
 monthly_stock_prices['close_price'] = monthly_stock_prices["5. adjusted close"].astype(float)
 stock_prices = monthly_stock_prices[['dt', 'dt_m', 'Symbol', 'close_price']]
 stk_prices = copy.deepcopy(stock_prices)
 
 print(stk_prices)
 
-#columns = ['close_price']
+# Create a month column as we will need to decipher whether investing for 6 months in Jan or at July is more
+# profitable
+stk_prices['month'] = stk_prices['dt_m'].dt.month
+stk_prices['month'] = stk_prices['month'].apply(lambda x: calendar.month_abbr[x])
+print(stk_prices)
+
+# columns = ['close_price']
 
 for j in [1, 3, 6, 12, -5, -6]:
     # Get the historic and future stock prices
     stk_prices['close_price' + '_' + str(j) + 'M_lag'] = stk_prices['close_price'].shift(-j)
     # The below code ensures that we are not taking in stk_prices from an incorrect symbol
     stk_prices.loc[stk_prices['Symbol'].shift(-j) !=
-                     stk_prices['Symbol'], 'close_price' + '_' + str(j) + 'M_lag'] = np.nan
+                   stk_prices['Symbol'], 'close_price' + '_' + str(j) + 'M_lag'] = np.nan
 
 print(stk_prices)
 stk_prices.info()
 
 # Checks
-stk_prices[['dt', 'dt_m', 'Symbol', 'close_price' , 'close_price_-5M_lag', 'close_price_-6M_lag']].tail(100)
+stk_prices[['dt', 'dt_m', 'Symbol', 'close_price', 'close_price_-5M_lag', 'close_price_-6M_lag']].tail(100)
 stk_prices.columns
+stk_prices.describe()  # There are no negative stock prices but the max stock price looks very high
+
+chk_tbl = stk_prices.sort_values(by=['close_price'], ascending=False)
+chk_tbl.head(10)  # I will take the 10 largest values and check the values on yahoo finance
+# The values look correct as per Yahoo finance
 
 
 # Create the forecasted stock price - please note we have only 5 months of forecasted stock information
@@ -321,7 +347,6 @@ stk_prices.tail(100)
 # Make dt_m the index
 stk_prices.index = stk_prices['dt_m']
 
-
 # Drop unneeded columns
 stk_prices = stk_prices.drop(['dt', 'dt_m', 'close_price_-5M_lag', 'close_price_-6M_lag'], axis=1)
 stk_prices.head(50)
@@ -331,4 +356,39 @@ stk_prices.columns
 stk_prices = pd.merge(stk_prices, dates_df, left_index=True, right_index=True)
 print(stk_prices)
 stk_prices.index.unique()  # 8 unique timepoints as expected
+stk_prices.head(20)
 
+# Plot the close price against the forecasted price (6 months later)
+# Looking at the plots possibly investing in stocks at July for a 6 month period is more
+# profitable than investing in Jan. Obviously we will have to fit all of the data to see if the date of investing
+# is statistically significant
+
+# function(table,close_price to be lower than, future price to be lower than)
+seaborn_lm_plt(stk_prices, 10, 50)
+seaborn_lm_plt(stk_prices, 100, 500)
+seaborn_lm_plt(stk_prices, 5, 20)
+seaborn_lm_plt(stk_prices, 5, 1000000)  # Outlier is Gamestop share increase from July '20 to Jan '21
+
+# Code for checking the stocks with the largest 6 month gains who had a share price of less than 5 euro
+# GameStop's (GME) share price increased from €4.01 in July 2020 to €320.99 in Jan '21
+# This is an outlier as the share increase was not a result of the fundamentals of the company.
+a = stk_prices.loc[stk_prices['close_price'] < 5]
+b = copy.deepcopy(a)
+b['diff'] = b['future_price'] - b['close_price']
+print(b.sort_values(by=['diff'], ascending=False))
+
+##################################################################################################################
+# Section 3.1 - Feature....
+##################################################################################################################
+
+# Join the three tables together by index
+#      - company_overview_dt (table containing the name, country, Sector and Industry of the companies)
+#      - financial_results_reorder (table containing the financial results (income statement, bs etc.)
+#      - stk_prices (table containing the monthly stock prices of each company)
+
+
+stk_prices.isnull().sum()
+
+company_overview_dt.head()
+financial_results_reorder
+stk_prices
