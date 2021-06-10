@@ -67,10 +67,20 @@ def seaborn_lm_plt(input_table, close_val, future_value):
     plt.xlabel('Close Price', size=12)
     plt.ylabel('Future Price', size=12)
     plt.legend(loc='upper left')
-    plt.title("Close Price (< $" + str(close_val) + ")" + " v Future Price (< $" + str(future_value) + ")"
-              , fontdict={'size': 16})
+    plt.title("Close Price v Future Price", fontdict={'size': 16})
     plt.tight_layout()
     plt.show()
+
+
+# Handling null values
+def null_value_pc(table):
+    missing_tbl = pd.DataFrame(table.isnull().sum(), columns = ['num missing'])
+    missing_tbl['missing_pc'] = missing_tbl['num missing'] / mdl_data.shape[0]
+    print(missing_tbl)
+
+
+#    plt.title("Close Price (< $" + str(close_val) + ")" + " v Future Price (< $" + str(future_value) + ")"
+#        , fontdict={'size': 16})
 
 # Function which converts a string value of "none" to missing
 # @timer
@@ -225,28 +235,45 @@ financial_results_reorder['reportedDate'] = pd.to_datetime(financial_results_reo
 
 # If the report date is in Dec or Nov we update the reported date to be Jan of the following year
 
-financial_results_reorder.loc[(financial_results_reorder['reportedDate'].dt.month == 12)
-                              | (financial_results_reorder['reportedDate'].dt.month == 11), 'dt_yr'] \
+financial_results_reorder.loc[((financial_results_reorder['reportedDate'].dt.month == 12)
+                              | (financial_results_reorder['reportedDate'].dt.month == 11)
+                              | (financial_results_reorder['reportedDate'].dt.month == 10))
+                              & (financial_results_reorder['reportedDate'].shift(1).dt.month != 1)
+                              & (financial_results_reorder['reportedDate'].shift(1).dt.month != 12)
+                              & (financial_results_reorder['reportedDate'].shift(1).dt.month != 11)
+                              & (financial_results_reorder['reportedDate'].shift(1).dt.month != 10), 'dt_yr'] \
     = financial_results_reorder['reportedDate'].dt.year + 1
 
-financial_results_reorder.loc[(financial_results_reorder['reportedDate'].dt.month == 12)
-                              | (financial_results_reorder['reportedDate'].dt.month == 11),
+financial_results_reorder.loc[((financial_results_reorder['reportedDate'].dt.month == 12)
+                              | (financial_results_reorder['reportedDate'].dt.month == 11)
+                              | (financial_results_reorder['reportedDate'].dt.month == 10))
+                              & (financial_results_reorder['reportedDate'].shift(1).dt.month != 1)
+                              & (financial_results_reorder['reportedDate'].shift(1).dt.month != 12)
+                              & (financial_results_reorder['reportedDate'].shift(1).dt.month != 11)
+                              & (financial_results_reorder['reportedDate'].shift(1).dt.month != 10),
                               'dt_month'] = 1
 
 # If the report date is in June or May we update the reported date to be July
 
-financial_results_reorder.loc[(financial_results_reorder['reportedDate'].dt.month == 6)
-                              | (financial_results_reorder['reportedDate'].dt.month == 5),
+financial_results_reorder.loc[((financial_results_reorder['reportedDate'].dt.month == 6)
+                              | (financial_results_reorder['reportedDate'].dt.month == 5)
+                              | (financial_results_reorder['reportedDate'].dt.month == 4))
+                              & (financial_results_reorder['reportedDate'].shift(1).dt.month != 7)
+                              & (financial_results_reorder['reportedDate'].shift(1).dt.month != 6)
+                              & (financial_results_reorder['reportedDate'].shift(1).dt.month != 5)
+                              & (financial_results_reorder['reportedDate'].shift(1).dt.month != 4),
                               'dt_month'] = 7
 
 financial_results_reorder['dt_yr'].fillna(financial_results_reorder['reportedDate'].dt.year, inplace=True)
 financial_results_reorder['dt_month'].fillna(financial_results_reorder['reportedDate'].dt.month, inplace=True)
+
 
 # Combine the year and month column which will be converted to an updated report date field
 financial_results_reorder['dt_str'] = financial_results_reorder['dt_yr'].astype(int).map(str) + "-" + \
                                       financial_results_reorder['dt_month'].astype(int).map(str)
 
 financial_results_reorder.head(40)
+
 
 # Create a date field called 'dt' and assign it as the index
 financial_results_reorder['dt'] = pd.to_datetime(financial_results_reorder['dt_str']).dt.to_period('M')
@@ -293,7 +320,7 @@ financial_results_reorder.tail(20)
 
 financial_results_reorder.index.unique()  # 8 unique timepoints as expected
 financial_results_reorder.shape  # the number of columns are unchanged at 454 as expected
-# the number of rows have decreased to 29,452
+# the number of rows have decreased to 31,399
 
 
 ##################################################################################################################
@@ -345,10 +372,11 @@ stk_prices.loc[stk_prices['dt_m'] != '2021-01', 'future_price'] = stk_prices['cl
 stk_prices.tail(100)
 
 # Make dt_m the index
-stk_prices.index = stk_prices['dt_m']
+stk_prices.drop("dt", inplace=True, axis=1)
+stk_prices.index = stk_prices['dt_m'].rename("dt")
 
 # Drop unneeded columns
-stk_prices = stk_prices.drop(['dt', 'dt_m', 'close_price_-5M_lag', 'close_price_-6M_lag'], axis=1)
+stk_prices = stk_prices.drop(['dt_m', 'close_price_-5M_lag', 'close_price_-6M_lag'], axis=1)
 stk_prices.head(50)
 stk_prices.columns
 
@@ -364,7 +392,7 @@ stk_prices.head(20)
 # is statistically significant
 
 # function(table,close_price to be lower than, future price to be lower than)
-seaborn_lm_plt(stk_prices, 10, 50)
+seaborn_lm_plt(stk_prices, 10, 50)  # cases which have a price of less than $10 and a future price less than $50
 seaborn_lm_plt(stk_prices, 100, 500)
 seaborn_lm_plt(stk_prices, 5, 20)
 seaborn_lm_plt(stk_prices, 5, 1000000)  # Outlier is Gamestop share increase from July '20 to Jan '21
@@ -387,8 +415,45 @@ print(b.sort_values(by=['diff'], ascending=False))
 #      - stk_prices (table containing the monthly stock prices of each company)
 
 
-stk_prices.isnull().sum()
+mdl_data = \
+    pd.merge(pd.merge(company_overview_dt, financial_results_reorder, how='left', on=['dt', 'Symbol'])
+             , stk_prices, how='left', on=['dt', 'Symbol'])
 
-company_overview_dt.head()
-financial_results_reorder
-stk_prices
+company_overview_dt.shape  # 40,656 rows and 8 columns
+financial_results_reorder.shape  # 31,399 rows and 454 columns
+stk_prices.shape  # 38,078 rows and 8 columns
+mdl_data.shape  # 40,656 rows and 468 columns (454 + 8 + 8 - 2 (Symbol which we are joining on))
+
+
+# Handling null values
+null_value_pc(mdl_data) # there are a large number of Null values to deal with in all but 6 columns
+
+# Sector
+mdl_data['Sector'].unique()  # nan and 'None' in the column
+mdl_data['Sector'].replace(to_replace = [np.nan,'None'], value = ['Unknown','Unknown'] , inplace=True)
+mdl_data['Sector'].unique()  # no nan or 'None' values in the column
+mdl_data['Sector'].isnull().sum() # 0 value returned
+
+# Industry
+mdl_data['Industry'].isnull().sum() # 120 missing values
+mdl_data['Industry'].unique()  # 'None' values in the column
+mdl_data['Industry'].replace(to_replace = [np.nan,'None'], value = ['Unknown','Unknown'] , inplace=True)
+mdl_data['Industry'].unique()  # no 'None' values in the column
+mdl_data['Industry'].isnull().sum() # 0 value returned
+
+
+null_value_pc(mdl_data) # Sector and industry no longer have missing values
+
+
+# The most important null field which needs to be investigated is the target variable which is the 'future_price' field
+# After investigating a number of the fields which are missing I have concluded that the stock prices wer not there
+# for that timepoint and so the rows should be deleted.
+mdl_data.loc[mdl_data['future_price'].isnull()]
+mdl_data.loc[mdl_data['Symbol'] == 'AAC', ['Symbol', 'close_price', 'future_price']]
+
+mdl_data['future_price'].isnull().sum() # We are looking to drop 6,266 rows
+mdl_data.shape  # currently 40,656 rows and 468 columns
+mdl_data.dropna(how='all', subset=['future_price'], inplace=True)
+mdl_data.shape # updated dataset has 34,390 rows (40,656 - 6,266) and 468 columns
+
+
