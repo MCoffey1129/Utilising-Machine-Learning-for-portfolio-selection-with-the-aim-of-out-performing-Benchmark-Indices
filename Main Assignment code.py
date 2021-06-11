@@ -565,7 +565,9 @@ print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('dat
 # will come out of a first "very rough" run of the model will be revenue, net profit, market cap etc.
 
 # Please note I first tried a simpler version of the model containing only balance sheet and income statment
-# information and the R squared was only 1.5%
+# information and the R squared was only 1.5%, test set had a negative R squared
+# The original random forest model had an R squared of 7.7%, test set had a negative R squared
+#
 
 X = mdl_input_data.iloc[:,:-1]
 X = pd.get_dummies(data=X, drop_first=True)
@@ -624,30 +626,32 @@ lin_reg_pred.sort_values(by=['y_train_pred'])
 
 
 # Run a random forest to check what are the most important features in predicting future stock prices
-rfr = RandomForestRegressor(n_estimators=200, max_depth=3, max_features=4, random_state=42)
 X_train_rf = X_train
 y_train_rf = y_train.ravel()
 X_test_rf = X_test
 y_test_rf = y_test.ravel()
 
+np.shape(X_train_rf)
 
 # Grid Search
 
-rfr = RandomForestRegressor(criterion='mse', random_state=21)
-param_grid = {'n_estimators' : [10,50,100,200], 'max_depth': [2, 4, 8, 15], 'max_features': ['auto', 'sqrt', 'log2']}
+rfr = RandomForestRegressor(criterion='mse')
+param_grid = [{'n_estimators' : [10, 50,100,200,300], 'max_depth': [2, 4, 8, 15], 'max_features': ['auto', 'sqrt']
+              ,'random_state' : [21]}]
 
 # Create a GridSearchCV object
-grid_rf_class = GridSearchCV(
+grid_rf_reg = GridSearchCV(
     estimator=rfr,
     param_grid=param_grid,
-    scoring='roc_auc',
-    n_jobs=4,
-    cv=5,
-    refit=True, return_train_score=True)
+    scoring='r2',
+    n_jobs=-1,
+    cv=10)
 
-grid_rf_class
+print(grid_rf_reg)
 
-grid_rf_class.fit(X_train_rf, y_train_rf) # Fitting 5 folds
+grid_rf_reg.fit(X_train_rf, y_train_rf)  # Fitting 5 folds
+
+
 
 # Read the cv_results property into a dataframe & print it out
 cv_results_df = pd.DataFrame(grid_rf_class.cv_results_)
