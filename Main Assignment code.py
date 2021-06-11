@@ -28,6 +28,7 @@ from sklearn.model_selection import cross_val_score
 import statsmodels.api as sm
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
 
 # Functions
 
@@ -517,7 +518,45 @@ mdl_data.shape # updated dataset has 30,567 rows  and 465 columns (467 -2)
 
 
 ##################################################################################################################
-# Section 3.2 - Feature Selection
+# Section 3.2 - Feature seclection
+##################################################################################################################
+
+# Assess the character variables
+print(pd.DataFrame(mdl_data.dtypes, columns=['datatype']).sort_values('datatype'))
+mdl_data.info()
+# useful for putting all of the character fields at the bottom of the print.
+
+# There are 9 character fields before we get dummy values for these fields we need to look into them:
+#    - Symbol has 4,566 unique values and Name has 4,397 unique values, we will drop these features as otherwise we will
+#      be modelling at too low a level
+#    - Asset type, currency and country all only have one unique value and as such are redundant to the model
+#    - exchange(2) and month (2) will be included in the model
+#    - We will investigate if Industry (148) should be included or if Sector (13) gives us enough information
+#    - about the company
+
+char_columns = ['Symbol', 'AssetType', 'Name', 'month', 'Exchange', 'Currency', 'Country', 'Sector', 'Industry']
+unique_vals = []
+for entry in char_columns:
+    cnt_entry_i = unique_column(mdl_data,entry).shape[0]
+    unique_vals.append([entry,cnt_entry_i])
+
+print(unique_vals)
+
+# Without doing any statistical tests we can see that there is clearly large differences between different industries
+# We will drop sector from our model and keep Industry
+mdl_data[['Sector', 'Industry', 'future_price_pc']].groupby(by=['Sector', 'Industry']).mean()
+
+
+# Drop the required columns in a new dataframe called "model_input_data"
+mdl_input_data = mdl_data.drop(['Symbol','AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
+
+print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('datatype')) # 3 character fields remaining
+
+
+
+
+##################################################################################################################
+# Section 4 - Modelling
 ##################################################################################################################
 
 # The features which we would expect to be important in predicting share price
@@ -525,25 +564,29 @@ mdl_data.shape # updated dataset has 30,567 rows  and 465 columns (467 -2)
 # will come out of a first "very rough" run of the model will be revenue, net profit, market cap etc.
 
 
-X = mdl_data.iloc[:,:-1]
+X = mdl_input_data.iloc[:,:-1]
 X = pd.get_dummies(data=X, drop_first=True)
-y = mdl_data.iloc[:,-1:]
+y = mdl_input_data.iloc[:,-1:]
+
 
 X_train = X[X.index < '2019-07']
 y_train = y[y.index < '2019-07']
 X_test = X[X.index == '2019-07']
 y_test = y[y.index == '2019-07']
 
-lasso = Lasso(alpha=0.4, normalize=True)
 
-# Fit the regressor to the data
-lasso.fit(X_train, y_train)
+# Feature Scaling
+# See "1.Data" what we are doing below is (x - mu) / sd
+# We have scaled both the dependent and independent variables (xi any yi)
+sc_X_train = StandardScaler()
+sc_X_test = StandardScaler()
+sc_y_train = StandardScaler()
+sc_y_test = StandardScaler()
 
-# Compute and print the coefficients
-lasso_coef = lasso.coef_
-print(lasso_coef)
-
-max(lasso_coef) # max coefficient is 0.0
+X_train = sc_X_train.fit_transform(X_train)
+X_test = sc_X_test.fit_transform(X_test)
+y_train = sc_y_train.fit_transform(y_train)
+y_test = sc_y_test.fit_transform(y_test)
 
 
 # Linear regression model
@@ -552,7 +595,7 @@ max(lasso_coef) # max coefficient is 0.0
 lin_reg = LinearRegression()
 lin_reg.fit(X_train, y_train)
 
-lin_reg.score(X_train, y_train)  # 1.6%
+lin_reg.score(X_train, y_train)  # 2.77%
 lin_reg.score(X_test, y_test) #  << 0%
 
 
