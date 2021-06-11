@@ -636,7 +636,7 @@ np.shape(X_train_rf)
 # Grid Search
 
 rfr = RandomForestRegressor(criterion='mse')
-param_grid = [{'n_estimators' : [10, 50,100,200,300], 'max_depth': [2, 4, 8, 15], 'max_features': ['auto', 'sqrt']
+param_grid = [{'n_estimators' : [50,100,200], 'max_depth': [2, 4, 8], 'max_features': ['auto', 'sqrt']
               ,'random_state' : [21]}]
 
 # Create a GridSearchCV object
@@ -645,13 +645,16 @@ grid_rf_reg = GridSearchCV(
     param_grid=param_grid,
     scoring='r2',
     n_jobs=-1,
-    cv=10)
+    cv=3)
 
 print(grid_rf_reg)
 
-grid_rf_reg.fit(X_train_rf, y_train_rf)  # Fitting 5 folds
+grid_rf_reg.fit(X_train_rf, y_train_rf)  # Fitting 3 folds
 
-
+best_rsqr = grid_search.best_score_
+best_parameters = grid_search.best_params_
+print("Best R squared: {:.2fs".format(best_rsqr*100))
+print("Best Parameters:", best_parameters)
 
 # Read the cv_results property into a dataframe & print it out
 cv_results_df = pd.DataFrame(grid_rf_class.cv_results_)
