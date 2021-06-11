@@ -29,6 +29,7 @@ import statsmodels.api as sm
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import r2_score
 
 # Functions
 
@@ -563,6 +564,8 @@ print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('dat
 # are P/E growth, net margin growth, P/B growth etc. so we would expect that the important features which
 # will come out of a first "very rough" run of the model will be revenue, net profit, market cap etc.
 
+# Please note I first tried a simpler version of the model containing only balance sheet and income statment
+# information and the R squared was only 1.5%
 
 X = mdl_input_data.iloc[:,:-1]
 X = pd.get_dummies(data=X, drop_first=True)
@@ -598,39 +601,80 @@ lin_reg.fit(X_train, y_train)
 lin_reg.score(X_train, y_train)  # 2.77%
 lin_reg.score(X_test, y_test) #  << 0%
 
+lin_reg.coef_[0]
+print(X)
 
 # Display two vectors, the y predicted v y train
 y_train_pred = pd.DataFrame(lin_reg.predict(X_train), columns=['y_train_pred'])
-lg_reg_pred =  pd.concat([y_train, y_train_pred.set_index(y_train.index)], axis=1)
-print(lg_reg_pred)
+y_train_df  = pd.DataFrame(y_train, columns=['y_train'])
+lin_reg_pred =  pd.concat([y_train_df, y_train_pred.set_index(y_train_df.index)], axis=1)
+print(lin_reg_pred)
+
 
 # Visually comparing the predicted values for profit versus actual
-sns.scatterplot(data=lg_reg_pred, x='y_train_pred', y='future_price_pc', palette='deep', legend=False)
+sns.scatterplot(data=lin_reg_pred, x='y_train_pred', y='y_train', palette='deep', legend=False)
 plt.xlabel('Predicted Stock Price', size=12)
 plt.ylabel('Actual Stock Price', size=12)
 plt.title("Predicted v Actual Stock Price", fontdict={'size': 16})
 plt.tight_layout()
 plt.show()
 
+lin_reg_pred.sort_values(by=['y_train_pred'])
+
 
 
 # Run a random forest to check what are the most important features in predicting future stock prices
 rfr = RandomForestRegressor(n_estimators=200, max_depth=3, max_features=4, random_state=42)
-X_train_rf = X[X.index < '2019-07'].values
-y_train_rf = y[y.index < '2019-07'].values.ravel()
-X_test_rf = X[X.index == '2019-07'].values
-y_test_rf = y[y.index == '2019-07'].values.ravel()
-print(np.shape(y_train_rf))
-print(y_train_rf)
-rfr.fit(X_train_rf, y_train_rf)
+X_train_rf = X_train
+y_train_rf = y_train.ravel()
+X_test_rf = X_test
+y_test_rf = y_test.ravel()
+
+
+# Grid Search
+
+rfr = RandomForestRegressor(criterion='mse', random_state=21)
+param_grid = {'n_estimators' : [10,50,100,200], 'max_depth': [2, 4, 8, 15], 'max_features': ['auto', 'sqrt', 'log2']}
+
+# Create a GridSearchCV object
+grid_rf_class = GridSearchCV(
+    estimator=rfr,
+    param_grid=param_grid,
+    scoring='roc_auc',
+    n_jobs=4,
+    cv=5,
+    refit=True, return_train_score=True)
+
+grid_rf_class
+
+grid_rf_class.fit(X_train_rf, y_train_rf) # Fitting 5 folds
+
+# Read the cv_results property into a dataframe & print it out
+cv_results_df = pd.DataFrame(grid_rf_class.cv_results_)
+cv_results_df
+
+# Predicting the train set results
+y_train_rf_pred = rfr.predict(X_train_rf)
+np.set_printoptions(precision=6)
+#print(np.concatenate((y_pred.reshape(len(y_pred),1), y_test.reshape(len(y_test),1)),1))
+
+# Evaluating the Model Performance - R sqr = 7.67%
+r2_score(y_train_rf, y_train_rf_pred)
 
 
 # Get feature importances from our random forest model
 importances = rfr.feature_importances_
+imp_list = list(importances)
 
 # Get the index of importances from greatest importance to least
-sorted_index = np.argsort(importances)[::-1]
-x = range(len(importances))
+sorted_index = list(np.argsort(importances)[::-1])
+print(sorted_index)
+
+rf_imp_df =pd.concat([pd.DataFrame(sorted_index, columns=['column_index']),
+                      pd.DataFrame(imp_list, columns=['Feature Importance']),
+                      pd.DataFrame(X.columns[sorted_index], columns=['Feature Name'])], axis=1)
+
+print(rf_imp_df)
 
 # Create tick labels
 labels = np.array(feature_names)[sorted_index]
