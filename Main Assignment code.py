@@ -566,7 +566,7 @@ print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('dat
 
 # Please note I first tried a simpler version of the model containing only balance sheet and income statment
 # information and the R squared was only 1.5%, test set had a negative R squared
-# The original random forest model had an R squared of 7.7%, test set had a negative R squared
+# The original random forest model had an R squared of 1.3% where most of the test scores were actually negative
 #
 
 X = mdl_input_data.iloc[:,:-1]
@@ -651,34 +651,27 @@ print(grid_rf_reg)
 
 grid_rf_reg.fit(X_train_rf, y_train_rf)  # Fitting 3 folds
 
-best_rsqr = grid_search.best_score_
-best_parameters = grid_search.best_params_
-print("Best R squared: {:.2fs".format(best_rsqr*100))
+best_rsqr = grid_rf_reg.best_score_
+best_parameters = grid_rf_reg.best_params_
+print("Best R squared: : {:.2f} %".format(best_rsqr*100))
 print("Best Parameters:", best_parameters)
 
 # Read the cv_results property into a dataframe & print it out
-cv_results_df = pd.DataFrame(grid_rf_class.cv_results_)
-cv_results_df
-
-# Predicting the train set results
-y_train_rf_pred = rfr.predict(X_train_rf)
-np.set_printoptions(precision=6)
-#print(np.concatenate((y_pred.reshape(len(y_pred),1), y_test.reshape(len(y_test),1)),1))
-
-# Evaluating the Model Performance - R sqr = 7.67%
-r2_score(y_train_rf, y_train_rf_pred)
+cv_results_df = pd.DataFrame(grid_rf_reg.cv_results_)
+print(cv_results_df)
 
 
 # Get feature importances from our random forest model
-importances = rfr.feature_importances_
-imp_list = list(importances)
+importances = grid_rf_reg.best_estimator_.feature_importances_
+imp_df = pd.DataFrame(list(np.argsort(importances)),columns=['Feature Importance'])
 
+sorted_index = np.argsort(importances)[::-1]
 # Get the index of importances from greatest importance to least
-sorted_index = list(np.argsort(importances)[::-1])
+index_df =pd.DataFrame(list(importances[::-1]),columns = ['column_index'])
 print(sorted_index)
 
 rf_imp_df =pd.concat([pd.DataFrame(sorted_index, columns=['column_index']),
-                      pd.DataFrame(imp_list, columns=['Feature Importance']),
+                      pd.DataFrame(imp_list.set_index(sorted_index.index), columns=['Feature Importance']),
                       pd.DataFrame(X.columns[sorted_index], columns=['Feature Name'])], axis=1)
 
 print(rf_imp_df)
