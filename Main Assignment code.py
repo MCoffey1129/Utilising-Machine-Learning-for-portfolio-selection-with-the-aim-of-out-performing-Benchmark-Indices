@@ -31,6 +31,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score
 
+
 # Functions
 
 # timer decorator - to check the length of time functions have taken to run
@@ -87,7 +88,7 @@ def seaborn_lm_plt(input_table, close_val, future_value):
 
 # Handling null values
 def null_value_pc(table):
-    missing_tbl = pd.DataFrame(table.isnull().sum(), columns = ['num missing'])
+    missing_tbl = pd.DataFrame(table.isnull().sum(), columns=['num missing'])
     missing_tbl['missing_pc'] = missing_tbl['num missing'] / mdl_data.shape[0]
     print(missing_tbl)
 
@@ -249,8 +250,8 @@ financial_results_reorder['reportedDate'] = pd.to_datetime(financial_results_reo
 # If the report date is in Dec or Nov we update the reported date to be Jan of the following year
 
 financial_results_reorder.loc[((financial_results_reorder['reportedDate'].dt.month == 12)
-                              | (financial_results_reorder['reportedDate'].dt.month == 11)
-                              | (financial_results_reorder['reportedDate'].dt.month == 10))
+                               | (financial_results_reorder['reportedDate'].dt.month == 11)
+                               | (financial_results_reorder['reportedDate'].dt.month == 10))
                               & (financial_results_reorder['reportedDate'].shift(1).dt.month != 1)
                               & (financial_results_reorder['reportedDate'].shift(1).dt.month != 12)
                               & (financial_results_reorder['reportedDate'].shift(1).dt.month != 11)
@@ -258,8 +259,8 @@ financial_results_reorder.loc[((financial_results_reorder['reportedDate'].dt.mon
     = financial_results_reorder['reportedDate'].dt.year + 1
 
 financial_results_reorder.loc[((financial_results_reorder['reportedDate'].dt.month == 12)
-                              | (financial_results_reorder['reportedDate'].dt.month == 11)
-                              | (financial_results_reorder['reportedDate'].dt.month == 10))
+                               | (financial_results_reorder['reportedDate'].dt.month == 11)
+                               | (financial_results_reorder['reportedDate'].dt.month == 10))
                               & (financial_results_reorder['reportedDate'].shift(1).dt.month != 1)
                               & (financial_results_reorder['reportedDate'].shift(1).dt.month != 12)
                               & (financial_results_reorder['reportedDate'].shift(1).dt.month != 11)
@@ -269,8 +270,8 @@ financial_results_reorder.loc[((financial_results_reorder['reportedDate'].dt.mon
 # If the report date is in June or May we update the reported date to be July
 
 financial_results_reorder.loc[((financial_results_reorder['reportedDate'].dt.month == 6)
-                              | (financial_results_reorder['reportedDate'].dt.month == 5)
-                              | (financial_results_reorder['reportedDate'].dt.month == 4))
+                               | (financial_results_reorder['reportedDate'].dt.month == 5)
+                               | (financial_results_reorder['reportedDate'].dt.month == 4))
                               & (financial_results_reorder['reportedDate'].shift(1).dt.month != 7)
                               & (financial_results_reorder['reportedDate'].shift(1).dt.month != 6)
                               & (financial_results_reorder['reportedDate'].shift(1).dt.month != 5)
@@ -280,13 +281,11 @@ financial_results_reorder.loc[((financial_results_reorder['reportedDate'].dt.mon
 financial_results_reorder['dt_yr'].fillna(financial_results_reorder['reportedDate'].dt.year, inplace=True)
 financial_results_reorder['dt_month'].fillna(financial_results_reorder['reportedDate'].dt.month, inplace=True)
 
-
 # Combine the year and month column which will be converted to an updated report date field
 financial_results_reorder['dt_str'] = financial_results_reorder['dt_yr'].astype(int).map(str) + "-" + \
                                       financial_results_reorder['dt_month'].astype(int).map(str)
 
 financial_results_reorder.head(40)
-
 
 # Create a date field called 'dt' and assign it as the index
 financial_results_reorder['dt'] = pd.to_datetime(financial_results_reorder['dt_str']).dt.to_period('M')
@@ -361,6 +360,7 @@ print(stk_prices)
 for j in [1, 3, 6, 12, -5, -6]:
     # Get the historic and future stock prices growths
     if j >= 0:
+        stk_prices['close_price' + '_' + str(j) + 'M_lag'] = stk_prices['close_price'].shift(-j)
         stk_prices['close_price' + '_' + str(j) + 'M_lag_pc'] = \
             (stk_prices['close_price'] - stk_prices['close_price'].shift(-j)) / stk_prices['close_price'].shift(-j)
     else:
@@ -372,7 +372,6 @@ for j in [1, 3, 6, 12, -5, -6]:
                    stk_prices['Symbol'], 'close_price' + '_' + str(j) + 'M_lag_pc'] = np.nan
     stk_prices.loc[stk_prices['Symbol'].shift(-j) !=
                    stk_prices['Symbol'], 'close_price' + '_' + str(j) + 'M_lag'] = np.nan
-
 
 print(stk_prices)
 stk_prices.info()
@@ -398,11 +397,12 @@ stk_prices.tail(100)
 # Make dt_m the index
 stk_prices.drop("dt", inplace=True, axis=1)
 stk_prices.index = stk_prices['dt_m'].rename("dt")
+stk_prices.head(25)
+stk_prices.columns
 
 # Drop unneeded columns
-stk_prices = stk_prices.drop(['dt_m', 'close_price_1M_lag', 'close_price_3M_lag', 'close_price_6M_lag',
-                              'close_price_12M_lag', 'close_price_-5M_lag_pc', 'close_price_-6M_lag_pc',
-                             'close_price_-5M_lag', 'close_price_-6M_lag'], axis=1)
+stk_prices = stk_prices.drop(['dt_m', 'close_price_-5M_lag_pc', 'close_price_-6M_lag_pc',
+                              'close_price_-5M_lag', 'close_price_-6M_lag'], axis=1)
 stk_prices.head(50)
 stk_prices.columns
 
@@ -423,7 +423,7 @@ seaborn_lm_plt(stk_prices, 100, 500)
 seaborn_lm_plt(stk_prices, 5, 20)
 seaborn_lm_plt(stk_prices, 5, 1000000)  # Outlier is Gamestop share increase from July '20 to Jan '21
 
-# Code for checking the stocks with the largest 6 month gains who had a share price of less than 5 euro
+# Code for checking the stocks with the largest 6 month gains on companies who had a share price of less than 5 euro
 # GameStop's (GME) share price increased from €4.01 in July 2020 to €320.99 in Jan '21
 # This is an outlier as the share increase was not a result of the fundamentals of the company.
 a = stk_prices.loc[stk_prices['close_price'] < 5]
@@ -447,33 +447,30 @@ mdl_data = \
 
 company_overview_dt.shape  # 40,656 rows and 8 columns
 financial_results_reorder.shape  # 31,399 rows and 454 columns
-stk_prices.shape  # 38,078 rows and 9 columns
-mdl_data.shape  # 40,656 rows and 469 columns (454 + 8 + 9 - 2 (Symbol which we are joining on))
-
+stk_prices.shape  # 38,078 rows and 13 columns
+mdl_data.shape  # 40,656 rows and 473 columns (454 + 8 + 13 - 2 (Symbol which we are joining on))
 
 # Handling null values
-null_value_pc(mdl_data) # there are a large number of Null values to deal with in all but 6 columns
+null_value_pc(mdl_data)  # there are a large number of Null values to deal with in all but 6 columns
 
 # Sector
 mdl_data['Sector'].unique()  # nan and 'None' in the column
-mdl_data['Sector'].replace(to_replace = [np.nan,'None'], value = ['Unknown','Unknown'] , inplace=True)
+mdl_data['Sector'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
 mdl_data['Sector'].unique()  # no nan or 'None' values in the column
-mdl_data['Sector'].isnull().sum() # 0 value returned
+mdl_data['Sector'].isnull().sum()  # 0 value returned
 
 # Industry
-mdl_data['Industry'].isnull().sum() # 120 missing values
+mdl_data['Industry'].isnull().sum()  # 120 missing values
 mdl_data['Industry'].unique()  # 'None' values in the column
-mdl_data['Industry'].replace(to_replace = [np.nan,'None'], value = ['Unknown','Unknown'] , inplace=True)
+mdl_data['Industry'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
 mdl_data['Industry'].unique()  # no 'None' values in the column
-mdl_data['Industry'].isnull().sum() # 0 value returned
+mdl_data['Industry'].isnull().sum()  # 0 value returned
 
-
-null_value_pc(mdl_data) # Sector and industry no longer have missing values
+null_value_pc(mdl_data)  # Sector and industry no longer have missing values
 
 # We need to drop the 'future_price' from our model to prevent data leakage
 mdl_data.drop('future_price', axis=1, inplace=True)
 mdl_data.shape  # 40,656 rows and 468 columns (469 - 1)
-
 
 # The most important null field which needs to be investigated is the target variable which is the 'future_price_pc'
 # field
@@ -482,31 +479,27 @@ mdl_data.shape  # 40,656 rows and 468 columns (469 - 1)
 mdl_data.loc[mdl_data['future_price_pc'].isnull()]
 mdl_data.loc[mdl_data['Symbol'] == 'AAC', ['Symbol', 'close_price', 'future_price_pc']]
 
-
-mdl_data['future_price_pc'].isnull().sum()  #  We are looking to drop 6,266 rows
+mdl_data['future_price_pc'].isnull().sum()  # We are looking to drop 6,266 rows
 mdl_data.shape  # currently 40,656 rows and 468 columns
 mdl_data.dropna(how='all', subset=['future_price_pc'], inplace=True)
-mdl_data.shape # updated dataset has 34,390 rows (40,656 - 6,266) and 468 columns
-
+mdl_data.shape  # updated dataset has 34,390 rows (40,656 - 6,266) and 468 columns
 
 null_value_pc(mdl_data)
 # There are 3,823 cases that have a missing 'fiscalDateEnding' and 'reportedDate.' These rows correspond to rows with
 # missing EPS and revenue information and so should be dropped from the model
 
 mdl_data.dropna(how='all', subset=['fiscalDateEnding'], inplace=True)
-mdl_data.shape # updated dataset has 30,567 rows (34,390 - 3,823) and 468 columns
+mdl_data.shape  # updated dataset has 30,567 rows (34,390 - 3,823) and 468 columns
 
-null_value_pc(mdl_data) # drop the reportedCurrency column as we already have a Currency column
+null_value_pc(mdl_data)  # drop the reportedCurrency column as we already have a Currency column
 mdl_data.drop('reportedCurrency', axis=1, inplace=True)
-mdl_data.shape # updated dataset has 30,567 rows  and 467 columns (468 -1)
-
+mdl_data.shape  # updated dataset has 30,567 rows  and 467 columns (468 -1)
 
 null_value_pc(mdl_data)
 # replace the estimated EPS with the reported EPS when missing, surprise and surprise Percentage should then be zero
 
 mdl_data['estimatedEPS'].fillna(mdl_data['reportedEPS'], inplace=True)
 mdl_data['estimatedEPS'].isnull().sum()  # no missing values
-
 
 # Replace all other missing values with 0
 # Revenue, gross profit and other values which were null had very few nulls......
@@ -515,8 +508,7 @@ mdl_data.isnull().sum()  # no missing values
 
 mdl_data.dtypes
 mdl_data.drop(['fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
-mdl_data.shape # updated dataset has 30,567 rows  and 465 columns (467 -2)
-
+mdl_data.shape  # updated dataset has 30,567 rows  and 465 columns (467 -2)
 
 ##################################################################################################################
 # Section 3.2 - Feature seclection
@@ -538,8 +530,8 @@ mdl_data.info()
 char_columns = ['Symbol', 'AssetType', 'Name', 'month', 'Exchange', 'Currency', 'Country', 'Sector', 'Industry']
 unique_vals = []
 for entry in char_columns:
-    cnt_entry_i = unique_column(mdl_data,entry).shape[0]
-    unique_vals.append([entry,cnt_entry_i])
+    cnt_entry_i = unique_column(mdl_data, entry).shape[0]
+    unique_vals.append([entry, cnt_entry_i])
 
 print(unique_vals)
 
@@ -547,15 +539,37 @@ print(unique_vals)
 # We will drop sector from our model and keep Industry
 mdl_data[['Sector', 'Industry', 'future_price_pc']].groupby(by=['Sector', 'Industry']).mean()
 
-
 # Drop the required columns in a new dataframe called "model_input_data"
-mdl_input_data = mdl_data.drop(['Symbol','AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
+mdl_input_data = mdl_data.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
 
-print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('datatype')) # 3 character fields remaining
+print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('datatype'))  # 3 character fields remaining
+
+# Create a market capitalisation calculation
 
 
+mdl_input_data.columns
+# Create new features required for modelling i.e. P/E, gross margin, net margin etc.
+def margin_calcs(input_num, input_den, output_col):
+    for j in [0, 1, 2, 4]:
+        if j == 0:
+            mdl_input_data[output_col] = mdl_input_data[input_num] / mdl_input_data[input_den]
 
+        else:
+            mdl_input_data[output_col + '_' + str(j) + 'Q_lag'] = mdl_input_data[input_num + '_' + str(j) + 'Q_lag'] \
+                                                             / mdl_input_data[input_den + '_' + str(j) + 'Q_lag']
 
+            mdl_input_data[output_col + '_' + str(j) + 'Q_lag_gth'] = (mdl_input_data[output_col]
+                                                                  - mdl_input_data[
+                                                                      output_col + '_' + str(j) + 'Q_lag'])
+
+margin_calcs('grossProfit', 'totalRevenue', 'gross_margin')
+margin_calcs('')
+
+mdl_input_data[['grossProfit', 'totalRevenue', 'gross_margin', 'gross_margin_1Q_lag', 'gross_margin_2Q_lag',
+                'gross_margin_4Q_lag', 'gross_margin_1Q_lag_gth', 'gross_margin_2Q_lag_gth',
+                'gross_margin_4Q_lag_gth']].head()
+
+mdl_data.head
 ##################################################################################################################
 # Section 4 - Modelling
 ##################################################################################################################
@@ -569,16 +583,14 @@ print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('dat
 # The original random forest model had an R squared of 1.3% where most of the test scores were actually negative
 #
 
-X = mdl_input_data.iloc[:,:-1]
+X = mdl_input_data.iloc[:, :-1]
 X = pd.get_dummies(data=X, drop_first=True)
-y = mdl_input_data.iloc[:,-1:]
-
+y = mdl_input_data.iloc[:, -1:]
 
 X_train = X[X.index < '2019-07']
 y_train = y[y.index < '2019-07']
 X_test = X[X.index == '2019-07']
 y_test = y[y.index == '2019-07']
-
 
 # Feature Scaling
 # See "1.Data" what we are doing below is (x - mu) / sd
@@ -593,7 +605,6 @@ X_test = sc_X_test.fit_transform(X_test)
 y_train = sc_y_train.fit_transform(y_train)
 y_test = sc_y_test.fit_transform(y_test)
 
-
 # Linear regression model
 
 # Build model
@@ -601,17 +612,16 @@ lin_reg = LinearRegression()
 lin_reg.fit(X_train, y_train)
 
 lin_reg.score(X_train, y_train)  # 2.77%
-lin_reg.score(X_test, y_test) #  << 0%
+lin_reg.score(X_test, y_test)  # << 0%
 
 lin_reg.coef_[0]
 print(X)
 
 # Display two vectors, the y predicted v y train
 y_train_pred = pd.DataFrame(lin_reg.predict(X_train), columns=['y_train_pred'])
-y_train_df  = pd.DataFrame(y_train, columns=['y_train'])
-lin_reg_pred =  pd.concat([y_train_df, y_train_pred.set_index(y_train_df.index)], axis=1)
+y_train_df = pd.DataFrame(y_train, columns=['y_train'])
+lin_reg_pred = pd.concat([y_train_df, y_train_pred.set_index(y_train_df.index)], axis=1)
 print(lin_reg_pred)
-
 
 # Visually comparing the predicted values for profit versus actual
 sns.scatterplot(data=lin_reg_pred, x='y_train_pred', y='y_train', palette='deep', legend=False)
@@ -622,8 +632,6 @@ plt.tight_layout()
 plt.show()
 
 lin_reg_pred.sort_values(by=['y_train_pred'])
-
-
 
 # Run a random forest to check what are the most important features in predicting future stock prices
 X_train_rf = X_train
@@ -636,8 +644,8 @@ np.shape(X_train_rf)
 # Grid Search
 
 rfr = RandomForestRegressor(criterion='mse')
-param_grid = [{'n_estimators' : [50,100,200], 'max_depth': [2, 4, 8], 'max_features': ['auto', 'sqrt']
-              ,'random_state' : [21]}]
+param_grid = [{'n_estimators': [50, 100, 200], 'max_depth': [2, 4, 8], 'max_features': ['auto', 'sqrt']
+                  , 'random_state': [21]}]
 
 # Create a GridSearchCV object
 grid_rf_reg = GridSearchCV(
@@ -653,33 +661,25 @@ grid_rf_reg.fit(X_train_rf, y_train_rf)  # Fitting 3 folds
 
 best_rsqr = grid_rf_reg.best_score_
 best_parameters = grid_rf_reg.best_params_
-print("Best R squared: : {:.2f} %".format(best_rsqr*100))
+print("Best R squared: : {:.2f} %".format(best_rsqr * 100))
 print("Best Parameters:", best_parameters)
 
 # Read the cv_results property into a dataframe & print it out
 cv_results_df = pd.DataFrame(grid_rf_reg.cv_results_)
 print(cv_results_df)
 
-
 # Get feature importances from our random forest model
 importances = grid_rf_reg.best_estimator_.feature_importances_
-imp_df = pd.DataFrame(list(np.argsort(importances)),columns=['Feature Importance'])
+imp_df = pd.DataFrame(list(importances), columns=['Feature Importance'])
+print(imp_df)
 
 sorted_index = np.argsort(importances)[::-1]
-# Get the index of importances from greatest importance to least
-index_df =pd.DataFrame(list(importances[::-1]),columns = ['column_index'])
 print(sorted_index)
 
-rf_imp_df =pd.concat([pd.DataFrame(sorted_index, columns=['column_index']),
-                      pd.DataFrame(imp_list.set_index(sorted_index.index), columns=['Feature Importance']),
-                      pd.DataFrame(X.columns[sorted_index], columns=['Feature Name'])], axis=1)
+# Get the index of importances from greatest importance to least
+index_df = pd.DataFrame(list(np.argsort(importances[::-1])), columns=['column_index'])
+print(index_df)
 
+rf_imp_df = pd.concat([index_df, imp_df, pd.DataFrame(X.columns[sorted_index], columns=['Feature Name'])], axis=1)
+rf_imp_df.sort_values(by=['Feature Importance'], inplace=True)
 print(rf_imp_df)
-
-# Create tick labels
-labels = np.array(feature_names)[sorted_index]
-plt.bar(x, importances[sorted_index], tick_label=labels)
-
-# Rotate tick labels to vertical
-plt.xticks(rotation=90)
-plt.show()
