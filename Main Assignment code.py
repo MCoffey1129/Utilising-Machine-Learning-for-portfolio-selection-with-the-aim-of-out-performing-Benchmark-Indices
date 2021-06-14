@@ -349,6 +349,9 @@ for i in columns:
         financial_results_reorder[i + '_' + str(j) + 'Q_gth'] = (financial_results_reorder[i] -
                                                                      financial_results_reorder[i].shift(-j)) / \
                                                                 abs(financial_results_reorder[i].shift(-j))
+
+        financial_results_reorder[i + '_' + str(j) + 'Q_gth'].replace([np.inf, -np.inf], 0, inplace=True)
+
         # The below code ensures that we are not taking in financial data from an incorrect symbol
         financial_results_reorder.loc[financial_results_reorder['Symbol'].shift(-j) !=
                                       financial_results_reorder['Symbol'], i + '_' + str(j) + 'Q_lag'] = np.nan
@@ -615,6 +618,9 @@ print(mdl_input_data.loc[mdl_input_data['Symbol'] == 'AAIC', ['totalRevenue', 't
     ,'surprise_1Q_gth', 'surprise_2Q_gth', 'surprise_4Q_gth']])
 
 
+ds = mdl_input_data[mdl_input_data.isin([np.inf, -np.inf])].sum()
+print(ds)
+
 # Assess the character variables
 print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('datatype'))
 mdl_input_data.info()
@@ -648,8 +654,6 @@ print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('dat
 
 # Replace the inf values with 0 (this has occurred where we have price information but not revenue so Price
 # to revenue is infinity)
-mdl_input_data[np.isneginf(mdl_input_data)] = 0
-mdl_input_data[mdl_input_data == -inf] = 0
 mdl_input_data.fillna(0, inplace=True)
 mdl_input_data.isnull().sum()  # no missing values
 
@@ -667,9 +671,9 @@ mdl_input_data.isnull().sum()  # no missing values
 # The original random forest model had an R squared of 1.3% where most of the test scores were actually negative
 #
 
-X = mdl_input_data.iloc[:, :-1]
+X = mdl_input_data.drop(['future_price_gth'], axis=1)
 X = pd.get_dummies(data=X, drop_first=True)
-y = mdl_input_data.iloc[:, -1:]
+y = mdl_input_data['future_price_gth']
 
 X_train = X[X.index < '2019-07']
 y_train = y[y.index < '2019-07']
