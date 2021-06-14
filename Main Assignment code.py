@@ -87,11 +87,26 @@ def seaborn_lm_plt(input_table, close_val, future_value):
 
 
 # Handling null values
+@timer
 def null_value_pc(table):
     missing_tbl = pd.DataFrame(table.isnull().sum(), columns=['num missing'])
     missing_tbl['missing_pc'] = missing_tbl['num missing'] / mdl_data.shape[0]
     print(missing_tbl)
 
+# Function used for margin calculations
+@timer
+def margin_calcs(input_num, input_den, output_col):
+    for j in [0, 1, 2, 4]:
+        if j == 0:
+            mdl_input_data[output_col] = mdl_input_data[input_num] / mdl_input_data[input_den]
+
+        else:
+            mdl_input_data[output_col + '_' + str(j) + 'Q_lag'] = mdl_input_data[input_num + '_' + str(j) + 'Q_lag'] \
+                                                             / mdl_input_data[input_den + '_' + str(j) + 'Q_lag']
+
+            mdl_input_data[output_col + '_' + str(j) + 'Q_lag_gth'] = (mdl_input_data[output_col]
+                                                                  - mdl_input_data[
+                                                                      output_col + '_' + str(j) + 'Q_lag'])
 
 #    plt.title("Close Price (< $" + str(close_val) + ")" + " v Future Price (< $" + str(future_value) + ")"
 #        , fontdict={'size': 16})
@@ -217,6 +232,7 @@ financial_results.info()  # Every field is saved as a character field
 financial_results.describe()  # No numeric fields so the output is not useful
 financial_results.isnull().sum()  # There are a large number of nulls
 
+
 # Replace 'None' with NaN in order to convert the character fields to Numeric,
 # we will have to take another look at reportedCurrency later but for now we will convert it
 # to numeric
@@ -236,6 +252,11 @@ financial_results_reorder.iloc[:, 4:] = \
 
 financial_results_reorder.info()  # Each of the numeric fields have been converted to floats
 financial_results_reorder.shape  # No change in the number of rows (78,126) and columns 94
+
+# Create a new column called Book_value which is equal to Assets less liabilities
+financial_results_reorder['book_value'] = financial_results_reorder['totalAssets'] \
+                                          - financial_results_reorder['totalLiabilities']
+
 
 # Convert the Date fields to dates
 financial_results_reorder['fiscalDateEnding'] = pd.to_datetime(financial_results_reorder['fiscalDateEnding']) \
@@ -310,7 +331,7 @@ financial_results_reorder.columns
 columns = list(financial_results_reorder.iloc[:, 4:].columns)
 
 for i in columns:
-    for j in range(1, 5):
+    for j in [1, 2, 4]:
         # Get the 4 quarter lags on to the same row i.e. the column totalRevenue_2Q_lag is the totalRevenue
         # from 6 months previous
         financial_results_reorder[i + '_' + str(j) + 'Q_lag'] = financial_results_reorder[i].shift(-j)
@@ -511,8 +532,64 @@ mdl_data.drop(['fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
 mdl_data.shape  # updated dataset has 30,567 rows  and 465 columns (467 -2)
 
 ##################################################################################################################
-# Section 3.2 - Feature seclection
+# Section 3.2 - Feature selection
 ##################################################################################################################
+
+mdl_input_data = mdl_data
+
+
+# Create a market cap column
+mdl_input_data['market_cap'] = mdl_input_data['commonStockSharesOutstanding'] * mdl_input_data['close_price']
+mdl_input_data['market_cap_1Q_lag'] = mdl_input_data['commonStockSharesOutstanding_1Q_lag'] \
+                                      * mdl_input_data['close_price_3M_lag']
+mdl_input_data['market_cap_2Q_lag'] = mdl_input_data['commonStockSharesOutstanding_2Q_lag'] \
+                                      * mdl_input_data['close_price_6M_lag']
+mdl_input_data['market_cap_4Q_lag'] = mdl_input_data['commonStockSharesOutstanding_4Q_lag'] \
+                                      * mdl_input_data['close_price_12M_lag']
+
+
+
+# Create new features required for modelling i.e. P/E, gross margin, net margin etc.
+
+# Profitability metrics
+margin_calcs('grossProfit', 'totalRevenue', 'gross_margin')
+margin_calcs('researchAndDevelopment', 'totalRevenue', 'r&d_margin')
+margin_calcs('ebitda', 'totalRevenue', 'ebitda_margin')
+margin_calcs('netIncome', 'totalRevenue', 'net_margin')
+margin_calcs('netIncome', 'totalAssets', 'ret_on_assets')
+margin_calcs('netIncome', 'totalShareholderEquity', 'ret_on_equity')
+
+# Liquidity metrics
+margin_calcs('operatingCashflow', 'totalCurrentLiabilities', 'op_cf')
+margin_calcs('totalCurrentAssets', 'totalCurrentLiabilities', 'current_ratio')
+
+# Metrics for checking the debt level of a company
+margin_calcs('totalLiabilities', 'totalAssets', 'debt_to_assets')
+margin_calcs('totalLiabilities', 'totalShareholderEquity', 'debt_to_equity')
+margin_calcs('ebitda', 'interestAndDebtExpense', 'int_cov_ratio')
+
+# Metrics used to compare against competition
+margin_calcs('market_cap', 'netIncome', 'p_to_e')
+margin_calcs('market_cap', 'book_value', 'p_to_b')
+margin_calcs('market_cap', 'totalRevenue', 'p_to_r')
+margin_calcs('market_cap', 'operatingCashflow', 'p_to_op_cf')
+margin_calcs('market_cap', 'cashflowFromInvestment', 'p_to_inv_cf')
+margin_calcs('market_cap', 'cashflowFromFinancing', 'p_to_fin_cf')
+
+# Dividends per share
+margin_calcs('dividendPayoutCommonStock', 'commonStockSharesOutstanding', 'div_yield')
+
+# Inventory issues
+margin_calcs('inventory', 'costofGoodsAndServicesSold', 'inv_ratio')
+
+
+mdl_input_data[['grossProfit', 'totalRevenue', 'gross_margin', 'gross_margin_1Q_lag', 'gross_margin_2Q_lag',
+                'gross_margin_4Q_lag', 'gross_margin_1Q_lag_gth', 'gross_margin_2Q_lag_gth',
+                'gross_margin_4Q_lag_gth']].head()
+
+mdl_data.head
+
+
 
 # Assess the character variables
 print(pd.DataFrame(mdl_data.dtypes, columns=['datatype']).sort_values('datatype'))
@@ -537,39 +614,15 @@ print(unique_vals)
 
 # Without doing any statistical tests we can see that there is clearly large differences between different industries
 # We will drop sector from our model and keep Industry
-mdl_data[['Sector', 'Industry', 'future_price_pc']].groupby(by=['Sector', 'Industry']).mean()
+mdl_input_data[['Sector', 'Industry', 'future_price_pc']].groupby(by=['Sector', 'Industry']).mean()
 
 # Drop the required columns in a new dataframe called "model_input_data"
-mdl_input_data = mdl_data.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
+mdl_input_data = mdl_input_data.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
 
 print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('datatype'))  # 3 character fields remaining
 
-# Create a market capitalisation calculation
 
 
-mdl_input_data.columns
-# Create new features required for modelling i.e. P/E, gross margin, net margin etc.
-def margin_calcs(input_num, input_den, output_col):
-    for j in [0, 1, 2, 4]:
-        if j == 0:
-            mdl_input_data[output_col] = mdl_input_data[input_num] / mdl_input_data[input_den]
-
-        else:
-            mdl_input_data[output_col + '_' + str(j) + 'Q_lag'] = mdl_input_data[input_num + '_' + str(j) + 'Q_lag'] \
-                                                             / mdl_input_data[input_den + '_' + str(j) + 'Q_lag']
-
-            mdl_input_data[output_col + '_' + str(j) + 'Q_lag_gth'] = (mdl_input_data[output_col]
-                                                                  - mdl_input_data[
-                                                                      output_col + '_' + str(j) + 'Q_lag'])
-
-margin_calcs('grossProfit', 'totalRevenue', 'gross_margin')
-margin_calcs('')
-
-mdl_input_data[['grossProfit', 'totalRevenue', 'gross_margin', 'gross_margin_1Q_lag', 'gross_margin_2Q_lag',
-                'gross_margin_4Q_lag', 'gross_margin_1Q_lag_gth', 'gross_margin_2Q_lag_gth',
-                'gross_margin_4Q_lag_gth']].head()
-
-mdl_data.head
 ##################################################################################################################
 # Section 4 - Modelling
 ##################################################################################################################
