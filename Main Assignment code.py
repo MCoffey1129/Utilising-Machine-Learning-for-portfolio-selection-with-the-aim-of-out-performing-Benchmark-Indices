@@ -675,10 +675,10 @@ X = mdl_input_data.drop(['future_price_gth'], axis=1)
 X = pd.get_dummies(data=X, drop_first=True)
 y = mdl_input_data['future_price_gth']
 
-X_train = X[X.index < '2019-07']
-y_train = y[y.index < '2019-07']
-X_test = X[X.index == '2019-07']
-y_test = y[y.index == '2019-07']
+X_train = X[X.index < '2019-07'].values
+y_train = y[y.index < '2019-07'].values
+X_test = X[X.index == '2019-07'].values
+y_test = y[y.index == '2019-07'].values
 
 y_train = y_train.reshape(len(y_train),1)  # For feature scaling you need a 2D array as this is what the StandardScaler expects
 y_test = y_test.reshape(len(y_test),1)
@@ -698,35 +698,33 @@ X_test = sc_X_test.fit_transform(X_test)
 y_train = sc_y_train.fit_transform(y_train)
 y_test = sc_y_test.fit_transform(y_test)
 
-y_train.shape
+
 # Linear regression model
 
 # Build model
 lin_reg = LinearRegression()
 lin_reg.fit(X_train, y_train)
 
-lin_reg.score(X_train, y_train)  # 2.77%
-lin_reg.score(X_test, y_test)  # << 0%
+lin_reg.score(X_train, y_train)  # 19.44%
+lin_reg.score(X_test, y_test)  # << 0% - we have overfit the model
 
 lin_reg.coef_[0]
 print(X)
 
 # Display two vectors, the y predicted v y train
-y_train_pred = pd.DataFrame(lin_reg.predict(X_train), columns=['y_train_pred'])
-y_train_df = pd.DataFrame(y_train, columns=['y_train'])
-lin_reg_pred = pd.concat([y_train_df, y_train_pred.set_index(y_train_df.index)], axis=1)
+y_pred_df = pd.DataFrame(lin_reg.predict(X_test), columns=['y_pred'])
+y_test_df = pd.DataFrame(y_test, columns=['y_test'])
+lin_reg_pred = pd.concat([y_test_df, y_pred_df.set_index(y_test_df.index)], axis=1)
 print(lin_reg_pred)
 
 # Visually comparing the predicted values for profit versus actual
-sns.scatterplot(data=lin_reg_pred, x='y_train_pred', y='y_train', palette='deep', legend=False)
+sns.scatterplot(data=lin_reg_pred, x='y_pred', y='y_test', palette='deep', legend=False)
 plt.xlabel('Predicted Stock Price', size=12)
 plt.ylabel('Actual Stock Price', size=12)
 plt.title("Predicted v Actual Stock Price", fontdict={'size': 16})
 plt.tight_layout()
 plt.show()
-
-lin_reg_pred.sort_values(by=['y_train_pred'])
-
+#
 # Run a random forest to check what are the most important features in predicting future stock prices
 X_train_rf = X_train
 y_train_rf = y_train.ravel()
@@ -738,7 +736,7 @@ np.shape(X_train_rf)
 # Grid Search
 
 rfr = RandomForestRegressor(criterion='mse')
-param_grid = [{'n_estimators': [50, 100, 200], 'max_depth': [2, 4, 8], 'max_features': ['auto', 'sqrt']
+param_grid = [{'n_estimators': [20, 50, 100, 200, 1000], 'max_depth': [2, 4, 8], 'max_features': ['auto', 'sqrt']
                   , 'random_state': [21]}]
 
 # Create a GridSearchCV object
@@ -767,13 +765,29 @@ importances = grid_rf_reg.best_estimator_.feature_importances_
 imp_df = pd.DataFrame(list(importances), columns=['Feature Importance'])
 print(imp_df)
 
-sorted_index = np.argsort(importances)[::-1]
-print(sorted_index)
-
+#
 # Get the index of importances from greatest importance to least
-index_df = pd.DataFrame(list(np.argsort(importances[::-1])), columns=['column_index'])
-print(index_df)
+sorted_index = np.argsort(importances)[::-1]
+x = range(len(importances))
+print(sorted_index)
+X.columns[733]
 
-rf_imp_df = pd.concat([index_df, imp_df, pd.DataFrame(X.columns[sorted_index], columns=['Feature Name'])], axis=1)
-rf_imp_df.sort_values(by=['Feature Importance'], inplace=True)
-print(rf_imp_df)
+
+#
+labels = np.array(X.columns)[sorted_index]
+print(labels)
+
+print(importances[sorted_index])
+
+#
+
+a = importances[sorted_index]
+print(a)
+print(type(a))
+
+feature_imp_df = pd.concat([pd.DataFrame(importances[sorted_index], columns=['Importance']),
+                 pd.DataFrame(labels, columns=['Feature'])], axis=1)
+
+#
+print(feature_imp_df)
+feature_imp_df[feature_imp_df['Feature'] == 'p_to_e_4Q_gth']
