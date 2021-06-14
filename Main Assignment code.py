@@ -100,23 +100,20 @@ def null_value_pc(table):
 def margin_calcs(input_num, input_den, output_col):
     for j in [0, 1, 2, 4]:
         if j == 0:
-            if mdl_input_data[input_den] == 0:
-                mdl_input_data[output_col] = 0
-            else:
-                mdl_input_data[output_col] = mdl_input_data[input_num] / mdl_input_data[input_den]
+            mdl_input_data[output_col] = mdl_input_data[input_num] / mdl_input_data[input_den]
+            mdl_input_data[output_col].replace([np.inf,-np.inf],0, inplace=True)
 
         else:
-            if mdl_input_data[input_den + '_' + str(j) + 'Q_lag'] == 0:
-                mdl_input_data[output_col + '_' + str(j) + 'Q_lag'] = 0
-                mdl_input_data[output_col + '_' + str(j) + 'Q_gth'] = 0
-            else:
-                mdl_input_data[output_col + '_' + str(j) + 'Q_lag'] = mdl_input_data[input_num + '_' + str(j) + 'Q_lag'] \
+            mdl_input_data[output_col + '_' + str(j) + 'Q_lag'] = mdl_input_data[input_num + '_' + str(j) + 'Q_lag'] \
                                                                   / mdl_input_data[input_den + '_' + str(j) + 'Q_lag']
 
-                mdl_input_data[output_col + '_' + str(j) + 'Q_gth'] = (mdl_input_data[output_col]
+            mdl_input_data[output_col + '_' + str(j) + 'Q_gth'] = (mdl_input_data[output_col]
                                                                        - mdl_input_data[
                                                                            output_col + '_' + str(j) + 'Q_lag'])
 
+            mdl_input_data[output_col + '_' + str(j) + 'Q_lag'].replace([np.inf, -np.inf], 0, inplace=True)
+
+            mdl_input_data[output_col + '_' + str(j) + 'Q_gth'].replace([np.inf, -np.inf], 0, inplace=True)
 
 #    plt.title("Close Price (< $" + str(close_val) + ")" + " v Future Price (< $" + str(future_value) + ")"
 #        , fontdict={'size': 16})
