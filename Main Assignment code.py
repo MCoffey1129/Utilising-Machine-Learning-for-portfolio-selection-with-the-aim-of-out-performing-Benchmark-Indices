@@ -93,6 +93,7 @@ def null_value_pc(table):
     missing_tbl['missing_pc'] = missing_tbl['num missing'] / mdl_data.shape[0]
     print(missing_tbl)
 
+
 # Function used for margin calculations
 @timer
 def margin_calcs(input_num, input_den, output_col):
@@ -102,11 +103,12 @@ def margin_calcs(input_num, input_den, output_col):
 
         else:
             mdl_input_data[output_col + '_' + str(j) + 'Q_lag'] = mdl_input_data[input_num + '_' + str(j) + 'Q_lag'] \
-                                                             / mdl_input_data[input_den + '_' + str(j) + 'Q_lag']
+                                                                  / mdl_input_data[input_den + '_' + str(j) + 'Q_lag']
 
             mdl_input_data[output_col + '_' + str(j) + 'Q_lag_gth'] = (mdl_input_data[output_col]
-                                                                  - mdl_input_data[
-                                                                      output_col + '_' + str(j) + 'Q_lag'])
+                                                                       - mdl_input_data[
+                                                                           output_col + '_' + str(j) + 'Q_lag'])
+
 
 #    plt.title("Close Price (< $" + str(close_val) + ")" + " v Future Price (< $" + str(future_value) + ")"
 #        , fontdict={'size': 16})
@@ -232,7 +234,6 @@ financial_results.info()  # Every field is saved as a character field
 financial_results.describe()  # No numeric fields so the output is not useful
 financial_results.isnull().sum()  # There are a large number of nulls
 
-
 # Replace 'None' with NaN in order to convert the character fields to Numeric,
 # we will have to take another look at reportedCurrency later but for now we will convert it
 # to numeric
@@ -256,7 +257,6 @@ financial_results_reorder.shape  # No change in the number of rows (78,126) and 
 # Create a new column called Book_value which is equal to Assets less liabilities
 financial_results_reorder['book_value'] = financial_results_reorder['totalAssets'] \
                                           - financial_results_reorder['totalLiabilities']
-
 
 # Convert the Date fields to dates
 financial_results_reorder['fiscalDateEnding'] = pd.to_datetime(financial_results_reorder['fiscalDateEnding']) \
@@ -335,9 +335,15 @@ for i in columns:
         # Get the 4 quarter lags on to the same row i.e. the column totalRevenue_2Q_lag is the totalRevenue
         # from 6 months previous
         financial_results_reorder[i + '_' + str(j) + 'Q_lag'] = financial_results_reorder[i].shift(-j)
+        financial_results_reorder[i + '_' + str(j) + 'Q_lag_gth'] = (financial_results_reorder[i] -
+                                                                     financial_results_reorder[i].shift(-j)) / \
+                                                                abs(financial_results_reorder[i].shift(-j))
         # The below code ensures that we are not taking in financial data from an incorrect symbol
         financial_results_reorder.loc[financial_results_reorder['Symbol'].shift(-j) !=
                                       financial_results_reorder['Symbol'], i + '_' + str(j) + 'Q_lag'] = np.nan
+        financial_results_reorder.loc[financial_results_reorder['Symbol'].shift(-j) !=
+                                      financial_results_reorder['Symbol'], i + '_' + str(j) + 'Q_lag_gth'] = np.nan
+
 
 financial_results_reorder.head(30)
 print(financial_results_reorder.loc[financial_results_reorder['Symbol'] == 'ZNTL'])  # Calculation looks correct
@@ -382,15 +388,15 @@ for j in [1, 3, 6, 12, -5, -6]:
     # Get the historic and future stock prices growths
     if j >= 0:
         stk_prices['close_price' + '_' + str(j) + 'M_lag'] = stk_prices['close_price'].shift(-j)
-        stk_prices['close_price' + '_' + str(j) + 'M_lag_pc'] = \
+        stk_prices['close_price' + '_' + str(j) + 'M_lag_gth'] = \
             (stk_prices['close_price'] - stk_prices['close_price'].shift(-j)) / stk_prices['close_price'].shift(-j)
     else:
         stk_prices['close_price' + '_' + str(j) + 'M_lag'] = stk_prices['close_price'].shift(-j)
-        stk_prices['close_price' + '_' + str(j) + 'M_lag_pc'] = \
+        stk_prices['close_price' + '_' + str(j) + 'M_lag_gth'] = \
             (stk_prices['close_price'].shift(-j) - stk_prices['close_price']) / stk_prices['close_price']
     # The below code ensures that we are not taking in stk_prices from an incorrect symbol
     stk_prices.loc[stk_prices['Symbol'].shift(-j) !=
-                   stk_prices['Symbol'], 'close_price' + '_' + str(j) + 'M_lag_pc'] = np.nan
+                   stk_prices['Symbol'], 'close_price' + '_' + str(j) + 'M_lag_gth'] = np.nan
     stk_prices.loc[stk_prices['Symbol'].shift(-j) !=
                    stk_prices['Symbol'], 'close_price' + '_' + str(j) + 'M_lag'] = np.nan
 
@@ -411,8 +417,8 @@ chk_tbl.head(10)  # I will take the 10 largest values and check the values on ya
 # for trades made in Jan '21
 stk_prices.loc[stk_prices['dt_m'] == '2021-01', 'future_price'] = stk_prices['close_price_-5M_lag']
 stk_prices.loc[stk_prices['dt_m'] != '2021-01', 'future_price'] = stk_prices['close_price_-6M_lag']
-stk_prices.loc[stk_prices['dt_m'] == '2021-01', 'future_price_pc'] = stk_prices['close_price_-5M_lag_pc']
-stk_prices.loc[stk_prices['dt_m'] != '2021-01', 'future_price_pc'] = stk_prices['close_price_-6M_lag_pc']
+stk_prices.loc[stk_prices['dt_m'] == '2021-01', 'future_price_gth'] = stk_prices['close_price_-5M_lag_gth']
+stk_prices.loc[stk_prices['dt_m'] != '2021-01', 'future_price_gth'] = stk_prices['close_price_-6M_lag_gth']
 stk_prices.tail(100)
 
 # Make dt_m the index
@@ -422,7 +428,7 @@ stk_prices.head(25)
 stk_prices.columns
 
 # Drop unneeded columns
-stk_prices = stk_prices.drop(['dt_m', 'close_price_-5M_lag_pc', 'close_price_-6M_lag_pc',
+stk_prices = stk_prices.drop(['dt_m', 'close_price_-5M_lag_gth', 'close_price_-6M_lag_gth',
                               'close_price_-5M_lag', 'close_price_-6M_lag'], axis=1)
 stk_prices.head(50)
 stk_prices.columns
@@ -493,16 +499,16 @@ null_value_pc(mdl_data)  # Sector and industry no longer have missing values
 mdl_data.drop('future_price', axis=1, inplace=True)
 mdl_data.shape  # 40,656 rows and 468 columns (469 - 1)
 
-# The most important null field which needs to be investigated is the target variable which is the 'future_price_pc'
+# The most important null field which needs to be investigated is the target variable which is the 'future_price_gth'
 # field
 # After investigating a number of the fields which are missing I have concluded that the stock prices were not there
 # for that timepoint and so the rows should be deleted.
-mdl_data.loc[mdl_data['future_price_pc'].isnull()]
-mdl_data.loc[mdl_data['Symbol'] == 'AAC', ['Symbol', 'close_price', 'future_price_pc']]
+mdl_data.loc[mdl_data['future_price_gth'].isnull()]
+mdl_data.loc[mdl_data['Symbol'] == 'AAC', ['Symbol', 'close_price', 'future_price_gth']]
 
-mdl_data['future_price_pc'].isnull().sum()  # We are looking to drop 6,266 rows
+mdl_data['future_price_gth'].isnull().sum()  # We are looking to drop 6,266 rows
 mdl_data.shape  # currently 40,656 rows and 468 columns
-mdl_data.dropna(how='all', subset=['future_price_pc'], inplace=True)
+mdl_data.dropna(how='all', subset=['future_price_gth'], inplace=True)
 mdl_data.shape  # updated dataset has 34,390 rows (40,656 - 6,266) and 468 columns
 
 null_value_pc(mdl_data)
@@ -537,7 +543,6 @@ mdl_data.shape  # updated dataset has 30,567 rows  and 465 columns (467 -2)
 
 mdl_input_data = mdl_data
 
-
 # Create a market cap column
 mdl_input_data['market_cap'] = mdl_input_data['commonStockSharesOutstanding'] * mdl_input_data['close_price']
 mdl_input_data['market_cap_1Q_lag'] = mdl_input_data['commonStockSharesOutstanding_1Q_lag'] \
@@ -546,8 +551,6 @@ mdl_input_data['market_cap_2Q_lag'] = mdl_input_data['commonStockSharesOutstandi
                                       * mdl_input_data['close_price_6M_lag']
 mdl_input_data['market_cap_4Q_lag'] = mdl_input_data['commonStockSharesOutstanding_4Q_lag'] \
                                       * mdl_input_data['close_price_12M_lag']
-
-
 
 # Create new features required for modelling i.e. P/E, gross margin, net margin etc.
 
@@ -563,12 +566,12 @@ margin_calcs('netIncome', 'totalShareholderEquity', 'ret_on_equity')
 margin_calcs('operatingCashflow', 'totalCurrentLiabilities', 'op_cf')
 margin_calcs('totalCurrentAssets', 'totalCurrentLiabilities', 'current_ratio')
 
-# Metrics for checking the debt level of a company
+# Metrics for checking the debt level of a company (Solvency ratios)
 margin_calcs('totalLiabilities', 'totalAssets', 'debt_to_assets')
 margin_calcs('totalLiabilities', 'totalShareholderEquity', 'debt_to_equity')
 margin_calcs('ebitda', 'interestAndDebtExpense', 'int_cov_ratio')
 
-# Metrics used to compare against competition
+# Valuation ratios
 margin_calcs('market_cap', 'netIncome', 'p_to_e')
 margin_calcs('market_cap', 'book_value', 'p_to_b')
 margin_calcs('market_cap', 'totalRevenue', 'p_to_r')
@@ -582,14 +585,9 @@ margin_calcs('dividendPayoutCommonStock', 'commonStockSharesOutstanding', 'div_y
 # Inventory issues
 margin_calcs('inventory', 'costofGoodsAndServicesSold', 'inv_ratio')
 
-
-mdl_input_data[['grossProfit', 'totalRevenue', 'gross_margin', 'gross_margin_1Q_lag', 'gross_margin_2Q_lag',
-                'gross_margin_4Q_lag', 'gross_margin_1Q_lag_gth', 'gross_margin_2Q_lag_gth',
-                'gross_margin_4Q_lag_gth']].head()
-
-mdl_data.head
-
-
+# EPS growth
+margin_calcs('reportedEPS', 'reportedEPS', 'reportedEPS')
+margin_calcs('surprisePercentage', 'surprisePercentage', 'surprisePercentage')
 
 # Assess the character variables
 print(pd.DataFrame(mdl_data.dtypes, columns=['datatype']).sort_values('datatype'))
@@ -614,14 +612,12 @@ print(unique_vals)
 
 # Without doing any statistical tests we can see that there is clearly large differences between different industries
 # We will drop sector from our model and keep Industry
-mdl_input_data[['Sector', 'Industry', 'future_price_pc']].groupby(by=['Sector', 'Industry']).mean()
+mdl_input_data[['Sector', 'Industry', 'future_price_gth']].groupby(by=['Sector', 'Industry']).mean()
 
 # Drop the required columns in a new dataframe called "model_input_data"
 mdl_input_data = mdl_input_data.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
 
 print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('datatype'))  # 3 character fields remaining
-
-
 
 ##################################################################################################################
 # Section 4 - Modelling
