@@ -30,6 +30,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score
+from numpy import inf
 
 
 # Functions
@@ -99,13 +100,20 @@ def null_value_pc(table):
 def margin_calcs(input_num, input_den, output_col):
     for j in [0, 1, 2, 4]:
         if j == 0:
-            mdl_input_data[output_col] = mdl_input_data[input_num] / mdl_input_data[input_den]
+            if mdl_input_data[input_den] == 0:
+                mdl_input_data[output_col] = 0
+            else:
+                mdl_input_data[output_col] = mdl_input_data[input_num] / mdl_input_data[input_den]
 
         else:
-            mdl_input_data[output_col + '_' + str(j) + 'Q_lag'] = mdl_input_data[input_num + '_' + str(j) + 'Q_lag'] \
+            if mdl_input_data[input_den + '_' + str(j) + 'Q_lag'] == 0:
+                mdl_input_data[output_col + '_' + str(j) + 'Q_lag'] = 0
+                mdl_input_data[output_col + '_' + str(j) + 'Q_gth'] = 0
+            else:
+                mdl_input_data[output_col + '_' + str(j) + 'Q_lag'] = mdl_input_data[input_num + '_' + str(j) + 'Q_lag'] \
                                                                   / mdl_input_data[input_den + '_' + str(j) + 'Q_lag']
 
-            mdl_input_data[output_col + '_' + str(j) + 'Q_gth'] = (mdl_input_data[output_col]
+                mdl_input_data[output_col + '_' + str(j) + 'Q_gth'] = (mdl_input_data[output_col]
                                                                        - mdl_input_data[
                                                                            output_col + '_' + str(j) + 'Q_lag'])
 
@@ -597,7 +605,7 @@ margin_calcs('dividendPayoutCommonStock', 'commonStockSharesOutstanding', 'div_y
 margin_calcs('inventory', 'costofGoodsAndServicesSold', 'inv_ratio')
 
 # Checks
-print(mdl_input_data.loc[mdl_input_data['Symbol'] == 'AMZN', ['totalRevenue', 'totalRevenue_1Q_lag', 'totalRevenue_2Q_lag'
+print(mdl_input_data.loc[mdl_input_data['Symbol'] == 'AAIC', ['totalRevenue', 'totalRevenue_1Q_lag', 'totalRevenue_2Q_lag'
     ,'totalRevenue_4Q_lag','market_cap', 'market_cap_1Q_lag', 'market_cap_2Q_lag'
     ,'market_cap_4Q_lag', 'p_to_r', 'p_to_r_1Q_lag', 'p_to_r_2Q_lag', 'p_to_r_4Q_lag'
     ,'totalRevenue_1Q_gth', 'totalRevenue_2Q_gth', 'totalRevenue_4Q_gth'
@@ -639,6 +647,15 @@ mdl_input_data[['Sector', 'Industry', 'future_price_gth']].groupby(by=['Sector',
 mdl_input_data = mdl_input_data.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
 
 print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('datatype'))  # 3 character fields remaining
+
+
+# Replace the inf values with 0 (this has occurred where we have price information but not revenue so Price
+# to revenue is infinity)
+mdl_input_data[np.isneginf(mdl_input_data)] = 0
+mdl_input_data[mdl_input_data == -inf] = 0
+mdl_input_data.fillna(0, inplace=True)
+mdl_input_data.isnull().sum()  # no missing values
+
 
 ##################################################################################################################
 # Section 4 - Modelling
