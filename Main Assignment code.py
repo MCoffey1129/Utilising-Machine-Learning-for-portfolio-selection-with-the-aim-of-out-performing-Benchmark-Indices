@@ -207,13 +207,14 @@ company_overview_dt.tail()
 
 
 financial_results = \
-    pd.merge(pd.merge(pd.merge(eps_data, inc_st_data, how='inner', on=['fiscalDateEnding', 'Symbol'])
+    pd.merge(pd.merge(pd.merge(eps_data, inc_st_data, how='left', on=['fiscalDateEnding', 'Symbol'])
                       , bs_data.drop(labels=['reportedCurrency'], axis=1), how='inner',
                       on=['fiscalDateEnding', 'Symbol'])
-             , cf_data.drop(labels=['netIncome', 'reportedCurrency'], axis=1), how='inner',
+             , cf_data.drop(labels=['netIncome', 'reportedCurrency'], axis=1), how='left',
              on=['fiscalDateEnding', 'Symbol'])
 
 financial_results.head(40)
+
 
 # Initially checked the data for duplicate columns (these are flagged as _x and _y after which I re-run the
 # join removing these columns to avoid the duplication.
@@ -264,6 +265,9 @@ financial_results_reorder['fiscalDateEnding'] = pd.to_datetime(financial_results
 
 financial_results_reorder['reportedDate'] = pd.to_datetime(financial_results_reorder['reportedDate']).dt.to_period('M')
 
+
+
+
 # We need to mould the data we will be looking to take in the most recent Financial information for July and Jan
 # each year. The most recent data at Jan will be the quarterly results published in Jan of the current year
 # or Dec or Nov of the previous year. Below we update the report date to accomplish the above.
@@ -302,6 +306,8 @@ financial_results_reorder.loc[((financial_results_reorder['reportedDate'].dt.mon
 financial_results_reorder['dt_yr'].fillna(financial_results_reorder['reportedDate'].dt.year, inplace=True)
 financial_results_reorder['dt_month'].fillna(financial_results_reorder['reportedDate'].dt.month, inplace=True)
 
+
+
 # Combine the year and month column which will be converted to an updated report date field
 financial_results_reorder['dt_str'] = financial_results_reorder['dt_yr'].astype(int).map(str) + "-" + \
                                       financial_results_reorder['dt_month'].astype(int).map(str)
@@ -329,7 +335,7 @@ financial_results_reorder.columns
 # columns are the list of all numeric fields we want to get the 4 lagged values for
 
 columns = list(financial_results_reorder.iloc[:, 4:].columns)
-
+financial_results_reorder.head()
 for i in columns:
     for j in [1, 2, 4]:
         # Get the 4 quarter lags on to the same row i.e. the column totalRevenue_2Q_lag is the totalRevenue
@@ -344,6 +350,11 @@ for i in columns:
         financial_results_reorder.loc[financial_results_reorder['Symbol'].shift(-j) !=
                                       financial_results_reorder['Symbol'], i + '_' + str(j) + 'Q_gth'] = np.nan
 
+
+print(financial_results_reorder.loc[(financial_results_reorder['Symbol'] == 'AAIC') |
+                                    (financial_results_reorder['Symbol'] == 'A'), [
+    'Symbol' , 'surprise', 'surprise_1Q_lag', 'surprise_2Q_lag', 'surprise_4Q_lag'
+    ,'surprise_1Q_gth', 'surprise_2Q_gth', 'surprise_4Q_gth']])
 
 financial_results_reorder.head(30)
 print(financial_results_reorder.loc[financial_results_reorder['Symbol'] == 'ZNTL'])  # Calculation looks correct
@@ -557,6 +568,7 @@ mdl_input_data['market_cap_4Q_lag'] = mdl_input_data['commonStockSharesOutstandi
 margin_calcs('grossProfit', 'totalRevenue', 'gross_margin')
 margin_calcs('researchAndDevelopment', 'totalRevenue', 'r&d_margin')
 margin_calcs('ebitda', 'totalRevenue', 'ebitda_margin')
+margin_calcs('ebit', 'totalRevenue', 'ebit_margin')
 margin_calcs('netIncome', 'totalRevenue', 'net_margin')
 margin_calcs('netIncome', 'totalAssets', 'ret_on_assets')
 margin_calcs('netIncome', 'totalShareholderEquity', 'ret_on_equity')
@@ -584,12 +596,18 @@ margin_calcs('dividendPayoutCommonStock', 'commonStockSharesOutstanding', 'div_y
 # Inventory issues
 margin_calcs('inventory', 'costofGoodsAndServicesSold', 'inv_ratio')
 
-
-mdl_input_data.loc[mdl_input_data['Symbol'] == 'AAIC', ['totalRevenue', 'totalRevenue_1Q_lag', 'totalRevenue_2Q_lag'
+# Checks
+print(mdl_input_data.loc[mdl_input_data['Symbol'] == 'AMZN', ['totalRevenue', 'totalRevenue_1Q_lag', 'totalRevenue_2Q_lag'
     ,'totalRevenue_4Q_lag','market_cap', 'market_cap_1Q_lag', 'market_cap_2Q_lag'
     ,'market_cap_4Q_lag', 'p_to_r', 'p_to_r_1Q_lag', 'p_to_r_2Q_lag', 'p_to_r_4Q_lag'
     ,'totalRevenue_1Q_gth', 'totalRevenue_2Q_gth', 'totalRevenue_4Q_gth'
-    ,'p_to_r_1Q_gth', 'p_to_r_2Q_gth', 'p_to_r_4Q_gth']]
+    ,'p_to_r_1Q_gth', 'p_to_r_2Q_gth', 'p_to_r_4Q_gth'
+    ,'netIncome', 'netIncome_1Q_lag', 'netIncome_2Q_lag', 'netIncome_4Q_lag'
+    ,'netIncome_1Q_gth', 'netIncome_2Q_gth', 'netIncome_4Q_gth'
+    , 'p_to_e', 'p_to_e_1Q_lag' , 'p_to_e_2Q_lag' , 'p_to_e_4Q_lag'
+    ,'p_to_e_1Q_gth', 'p_to_e_2Q_gth', 'p_to_e_4Q_gth'
+    ,'surprise', 'surprise_1Q_lag', 'surprise_2Q_lag', 'surprise_4Q_lag'
+    ,'surprise_1Q_gth', 'surprise_2Q_gth', 'surprise_4Q_gth']])
 
 
 # Assess the character variables
