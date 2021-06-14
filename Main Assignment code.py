@@ -105,7 +105,7 @@ def margin_calcs(input_num, input_den, output_col):
             mdl_input_data[output_col + '_' + str(j) + 'Q_lag'] = mdl_input_data[input_num + '_' + str(j) + 'Q_lag'] \
                                                                   / mdl_input_data[input_den + '_' + str(j) + 'Q_lag']
 
-            mdl_input_data[output_col + '_' + str(j) + 'Q_lag_gth'] = (mdl_input_data[output_col]
+            mdl_input_data[output_col + '_' + str(j) + 'Q_gth'] = (mdl_input_data[output_col]
                                                                        - mdl_input_data[
                                                                            output_col + '_' + str(j) + 'Q_lag'])
 
@@ -335,21 +335,20 @@ for i in columns:
         # Get the 4 quarter lags on to the same row i.e. the column totalRevenue_2Q_lag is the totalRevenue
         # from 6 months previous
         financial_results_reorder[i + '_' + str(j) + 'Q_lag'] = financial_results_reorder[i].shift(-j)
-        financial_results_reorder[i + '_' + str(j) + 'Q_lag_gth'] = (financial_results_reorder[i] -
+        financial_results_reorder[i + '_' + str(j) + 'Q_gth'] = (financial_results_reorder[i] -
                                                                      financial_results_reorder[i].shift(-j)) / \
                                                                 abs(financial_results_reorder[i].shift(-j))
         # The below code ensures that we are not taking in financial data from an incorrect symbol
         financial_results_reorder.loc[financial_results_reorder['Symbol'].shift(-j) !=
                                       financial_results_reorder['Symbol'], i + '_' + str(j) + 'Q_lag'] = np.nan
         financial_results_reorder.loc[financial_results_reorder['Symbol'].shift(-j) !=
-                                      financial_results_reorder['Symbol'], i + '_' + str(j) + 'Q_lag_gth'] = np.nan
+                                      financial_results_reorder['Symbol'], i + '_' + str(j) + 'Q_gth'] = np.nan
 
 
 financial_results_reorder.head(30)
 print(financial_results_reorder.loc[financial_results_reorder['Symbol'] == 'ZNTL'])  # Calculation looks correct
 financial_results_reorder.shape  # Number of rows are unchanged at 78,126 but we now have 454 columns
 # The number of columns equals 90 (the number of numeric columns) * 5 (4 lagged periods) + 4 (character fields) = 454
-
 
 # We only have 8 timeframes which we are modelling on so we can delete all other time points
 # These timepooints are saved in the dates_df
@@ -388,15 +387,15 @@ for j in [1, 3, 6, 12, -5, -6]:
     # Get the historic and future stock prices growths
     if j >= 0:
         stk_prices['close_price' + '_' + str(j) + 'M_lag'] = stk_prices['close_price'].shift(-j)
-        stk_prices['close_price' + '_' + str(j) + 'M_lag_gth'] = \
+        stk_prices['close_price' + '_' + str(j) + 'M_gth'] = \
             (stk_prices['close_price'] - stk_prices['close_price'].shift(-j)) / stk_prices['close_price'].shift(-j)
     else:
         stk_prices['close_price' + '_' + str(j) + 'M_lag'] = stk_prices['close_price'].shift(-j)
-        stk_prices['close_price' + '_' + str(j) + 'M_lag_gth'] = \
+        stk_prices['close_price' + '_' + str(j) + 'M_gth'] = \
             (stk_prices['close_price'].shift(-j) - stk_prices['close_price']) / stk_prices['close_price']
     # The below code ensures that we are not taking in stk_prices from an incorrect symbol
     stk_prices.loc[stk_prices['Symbol'].shift(-j) !=
-                   stk_prices['Symbol'], 'close_price' + '_' + str(j) + 'M_lag_gth'] = np.nan
+                   stk_prices['Symbol'], 'close_price' + '_' + str(j) + 'M_gth'] = np.nan
     stk_prices.loc[stk_prices['Symbol'].shift(-j) !=
                    stk_prices['Symbol'], 'close_price' + '_' + str(j) + 'M_lag'] = np.nan
 
@@ -417,8 +416,8 @@ chk_tbl.head(10)  # I will take the 10 largest values and check the values on ya
 # for trades made in Jan '21
 stk_prices.loc[stk_prices['dt_m'] == '2021-01', 'future_price'] = stk_prices['close_price_-5M_lag']
 stk_prices.loc[stk_prices['dt_m'] != '2021-01', 'future_price'] = stk_prices['close_price_-6M_lag']
-stk_prices.loc[stk_prices['dt_m'] == '2021-01', 'future_price_gth'] = stk_prices['close_price_-5M_lag_gth']
-stk_prices.loc[stk_prices['dt_m'] != '2021-01', 'future_price_gth'] = stk_prices['close_price_-6M_lag_gth']
+stk_prices.loc[stk_prices['dt_m'] == '2021-01', 'future_price_gth'] = stk_prices['close_price_-5M_gth']
+stk_prices.loc[stk_prices['dt_m'] != '2021-01', 'future_price_gth'] = stk_prices['close_price_-6M_gth']
 stk_prices.tail(100)
 
 # Make dt_m the index
@@ -428,7 +427,7 @@ stk_prices.head(25)
 stk_prices.columns
 
 # Drop unneeded columns
-stk_prices = stk_prices.drop(['dt_m', 'close_price_-5M_lag_gth', 'close_price_-6M_lag_gth',
+stk_prices = stk_prices.drop(['dt_m', 'close_price_-5M_gth', 'close_price_-6M_gth',
                               'close_price_-5M_lag', 'close_price_-6M_lag'], axis=1)
 stk_prices.head(50)
 stk_prices.columns
@@ -585,13 +584,17 @@ margin_calcs('dividendPayoutCommonStock', 'commonStockSharesOutstanding', 'div_y
 # Inventory issues
 margin_calcs('inventory', 'costofGoodsAndServicesSold', 'inv_ratio')
 
-# EPS growth
-margin_calcs('reportedEPS', 'reportedEPS', 'reportedEPS')
-margin_calcs('surprisePercentage', 'surprisePercentage', 'surprisePercentage')
+
+mdl_input_data.loc[mdl_input_data['Symbol'] == 'AAIC', ['totalRevenue', 'totalRevenue_1Q_lag', 'totalRevenue_2Q_lag'
+    ,'totalRevenue_4Q_lag','market_cap', 'market_cap_1Q_lag', 'market_cap_2Q_lag'
+    ,'market_cap_4Q_lag', 'p_to_r', 'p_to_r_1Q_lag', 'p_to_r_2Q_lag', 'p_to_r_4Q_lag'
+    ,'totalRevenue_1Q_gth', 'totalRevenue_2Q_gth', 'totalRevenue_4Q_gth'
+    ,'p_to_r_1Q_gth', 'p_to_r_2Q_gth', 'p_to_r_4Q_gth']]
+
 
 # Assess the character variables
-print(pd.DataFrame(mdl_data.dtypes, columns=['datatype']).sort_values('datatype'))
-mdl_data.info()
+print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('datatype'))
+mdl_input_data.info()
 # useful for putting all of the character fields at the bottom of the print.
 
 # There are 9 character fields before we get dummy values for these fields we need to look into them:
@@ -605,7 +608,7 @@ mdl_data.info()
 char_columns = ['Symbol', 'AssetType', 'Name', 'month', 'Exchange', 'Currency', 'Country', 'Sector', 'Industry']
 unique_vals = []
 for entry in char_columns:
-    cnt_entry_i = unique_column(mdl_data, entry).shape[0]
+    cnt_entry_i = unique_column(mdl_input_data, entry).shape[0]
     unique_vals.append([entry, cnt_entry_i])
 
 print(unique_vals)
