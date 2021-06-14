@@ -680,6 +680,11 @@ y_train = y[y.index < '2019-07']
 X_test = X[X.index == '2019-07']
 y_test = y[y.index == '2019-07']
 
+y_train = y_train.reshape(len(y_train),1)  # For feature scaling you need a 2D array as this is what the StandardScaler expects
+y_test = y_test.reshape(len(y_test),1)
+print(y_train)
+y_train.shape
+
 # Feature Scaling
 # See "1.Data" what we are doing below is (x - mu) / sd
 # We have scaled both the dependent and independent variables (xi any yi)
@@ -693,6 +698,7 @@ X_test = sc_X_test.fit_transform(X_test)
 y_train = sc_y_train.fit_transform(y_train)
 y_test = sc_y_test.fit_transform(y_test)
 
+y_train.shape
 # Linear regression model
 
 # Build model
