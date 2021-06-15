@@ -447,6 +447,7 @@ stk_prices.loc[stk_prices['future_price_gth'] >= 0.1, 'gt_10pc_gth'] = 1
 stk_prices.loc[stk_prices['future_price_gth'] < 0.1, 'gt_10pc_gth'] = 0
 stk_prices.tail(100)
 
+
 # Make dt_m the index
 stk_prices.drop("dt", inplace=True, axis=1)
 stk_prices.index = stk_prices['dt_m'].rename("dt")
@@ -605,8 +606,9 @@ mdl_train_numeric.head()
 
 mdl_train_numeric = mdl_train_numeric.fillna(0)
 
-null_value_pc(mdl_train_numeric)  # there are a large number of Null values to deal with in all but 6 columns
+null_value_pc(mdl_train_numeric)  # there are non non-zero values
 
+# Get the correlation between each of the fields and the target variable
 col_list = list(mdl_train_numeric.columns)
 col_list.remove('future_price_gth')
 print(col_list)
@@ -627,9 +629,8 @@ corr_df = pd.concat([pd.DataFrame(col_list,columns=['columns']), pd.DataFrame(co
 corr_df_nulls = pd.merge(null_df, corr_df, left_index=True, right_on='columns')
 print(corr_df_nulls.sort_values(by='Correlation'))
 
-
+# Dataframe containing each of the correlations
 all_corrs = mdl_train_numeric.corr()
-
 
 
 # Sector
@@ -645,13 +646,13 @@ mdl_data_test['Sector'].isnull().sum()  # 0 value returned
 
 
 # Industry
-mdl_data_train['Industry'].isnull().sum()  # 120 missing values
+mdl_data_train['Industry'].isnull().sum()  # 7 missing values
 mdl_data_train['Industry'].unique()  # 'None' values in the column
 mdl_data_train['Industry'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
 mdl_data_train['Industry'].unique()  # no 'None' values in the column
 mdl_data_train['Industry'].isnull().sum()  # 0 value returned
 
-mdl_data_test['Industry'].isnull().sum()  # 120 missing values
+mdl_data_test['Industry'].isnull().sum()  # 4 missing values
 mdl_data_test['Industry'].unique()  # 'None' values in the column
 mdl_data_test['Industry'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
 mdl_data_test['Industry'].unique()  # no 'None' values in the column
@@ -660,15 +661,13 @@ mdl_data_test['Industry'].isnull().sum()  # 0 value returned
 
 null_value_pc(mdl_data_train)  # Sector and industry no longer have missing values
 
-# We need to drop the 'future_price' from our model to prevent data leakage
-mdl_data_train.drop(['future_price','future_price_gth'], axis=1, inplace=True)
-mdl_data_test.drop(['future_price','future_price_gth'], axis=1, inplace=True)
-mdl_data_train.shape  # 40,656 rows and 468 columns (469 - 1)
+# We need to drop the 'future_price' and 'future_price_gth' from our model
+mdl_data_train.drop(['future_price','future_price_gth', 'fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
+mdl_data_test.drop(['future_price','future_price_gth', 'fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
 
+mdl_data_train.shape
 ##
 
-null_value_pc(mdl_data)  # drop the reportedCurrency column as we already have a Currency column
-##
 
 # Assess the character variables
 print(pd.DataFrame(mdl_data_train.dtypes, columns=['datatype']).sort_values('datatype'))
@@ -686,24 +685,19 @@ mdl_data_train.info()
 char_columns = ['Symbol', 'AssetType', 'Name', 'month', 'Exchange', 'Currency', 'Country', 'Sector', 'Industry']
 unique_vals = []
 for entry in char_columns:
-    cnt_entry_i = unique_column(mdl_input_data, entry).shape[0]
+    cnt_entry_i = unique_column(mdl_data_train, entry).shape[0]
     unique_vals.append([entry, cnt_entry_i])
 
 print(unique_vals)
 
 # Without doing any statistical tests we can see that there is clearly large differences between different industries
 # We will drop sector from our model and keep Industry
-mdl_data_train[['Sector', 'Industry', 'future_price_gth']].groupby(by=['Sector', 'Industry']).mean()
+mdl_data_train[['Sector', 'Industry', 'gt_10pc_gth']].groupby(by=['Sector', 'Industry']).mean()
 
 # Drop the required columns in a new dataframe called "model_input_data"
 mdl_data_train = mdl_data_train.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
 
 print(pd.DataFrame(mdl_data_train.dtypes, columns=['datatype']).sort_values('datatype'))  # 3 character fields remaining
-
-
-#
-
-#
 
 
 # Replace all other missing values with 0
@@ -714,18 +708,18 @@ mdl_data_train.fillna(0, inplace=True)
 mdl_data_test.fillna(0, inplace=True)
 mdl_data_train.isnull().sum()  # no missing values
 mdl_data_test.isnull().sum()  # no missing values
+mdl_data_train.describe()
 
+mdl_data_train['gt_10pc_gth'] = mdl_data_train['gt_10pc_gth'].astype(int)
+mdl_data_test['gt_10pc_gth'] = mdl_data_test['gt_10pc_gth'].astype(int)
+
+mdl_data_test.info()
 
 ax = plt.gca()
 sns.scatterplot(data = mdl_data_train, x= 'paymentsForRepurchaseOfPreferredStock', y='future_price_gth')
 ax.set_yscale('log')
 ax.set_xscale('log')
 
-#
-
-##
-
-#
 ##################################################################################################################
 # Section 4 - Modelling
 ##################################################################################################################
@@ -739,14 +733,19 @@ ax.set_xscale('log')
 # The original random forest model had an R squared of 1.3% where most of the test scores were actually negative
 #
 
-X = mdl_input_data.drop(['future_price_gth'], axis=1)
-X = pd.get_dummies(data=X, drop_first=True)
-y = mdl_input_data['future_price_gth']
+X_train = mdl_data_train.drop(['gt_10pc_gth'], axis=1)
+X_train = pd.get_dummies(data=X_train, drop_first=True)
+y_train = mdl_data_train['gt_10pc_gth']
+X_test = mdl_data_train.drop(['gt_10pc_gth'], axis=1)
+X_test = pd.get_dummies(data=X_test, drop_first=True)
+y_test = mdl_data_train['gt_10pc_gth']
 
-X_train = X[X.index < '2019-07'].values
-y_train = y[y.index < '2019-07'].values
-X_test = X[X.index == '2019-07'].values
-y_test = y[y.index == '2019-07'].values
+print(y_train)
+
+X_train = X_train.values
+y_train = y_train.values
+X_test = X_test.values
+y_test = y_test.values
 
 y_train = y_train.reshape(len(y_train),1)  # For feature scaling you need a 2D array as this is what the StandardScaler expects
 y_test = y_test.reshape(len(y_test),1)
@@ -758,101 +757,58 @@ y_train.shape
 # We have scaled both the dependent and independent variables (xi any yi)
 sc_X_train = StandardScaler()
 sc_X_test = StandardScaler()
-sc_y_train = StandardScaler()
-sc_y_test = StandardScaler()
 
 X_train = sc_X_train.fit_transform(X_train)
 X_test = sc_X_test.fit_transform(X_test)
-y_train = sc_y_train.fit_transform(y_train)
-y_test = sc_y_test.fit_transform(y_test)
 
 
-# # Linear regression model
-#
-# # Build model
-# lin_reg = LinearRegression()
-# lin_reg.fit(X_train, y_train)
-#
-# lin_reg.score(X_train, y_train)  # 19.44%
-# lin_reg.score(X_test, y_test)  # << 0% - we have overfit the model
-#
-# lin_reg.coef_[0]
-# print(X)
-#
-# # Display two vectors, the y predicted v y train
-# y_pred_df = pd.DataFrame(lin_reg.predict(X_test), columns=['y_pred'])
-# y_test_df = pd.DataFrame(y_test, columns=['y_test'])
-# lin_reg_pred = pd.concat([y_test_df, y_pred_df.set_index(y_test_df.index)], axis=1)
-# print(lin_reg_pred)
-#
-# # Visually comparing the predicted values for profit versus actual
-# sns.scatterplot(data=lin_reg_pred, x='y_pred', y='y_test', palette='deep', legend=False)
-# plt.xlabel('Predicted Stock Price', size=12)
-# plt.ylabel('Actual Stock Price', size=12)
-# plt.title("Predicted v Actual Stock Price", fontdict={'size': 16})
-# plt.tight_layout()
-# plt.show()
-# #
-# # Run a random forest to check what are the most important features in predicting future stock prices
-# X_train_rf = X_train
-# y_train_rf = y_train.ravel()
-# X_test_rf = X_test
-# y_test_rf = y_test.ravel()
-#
-# np.shape(X_train_rf)
-#
-# # Grid Search
-#
-# rfr = RandomForestRegressor(criterion='mse')
-# param_grid = [{'n_estimators': [20, 50, 100, 200], 'max_depth': [2, 4, 8], 'max_features': ['auto', 'sqrt']
-#                   , 'random_state': [21]}]
-#
-# # Create a GridSearchCV object
-# grid_rf_reg = GridSearchCV(
-#     estimator=rfr,
-#     param_grid=param_grid,
-#     scoring='r2',
-#     n_jobs=-1,
-#     cv=3)
-#
-# print(grid_rf_reg)
-#
-# grid_rf_reg.fit(X_train_rf, y_train_rf)  # Fitting 3 folds
-#
-# best_rsqr = grid_rf_reg.best_score_
-# best_parameters = grid_rf_reg.best_params_
-# print("Best R squared: : {:.2f} %".format(best_rsqr * 100))
-# print("Best Parameters:", best_parameters)
-#
-# # Read the cv_results property into a dataframe & print it out
-# cv_results_df = pd.DataFrame(grid_rf_reg.cv_results_)
-# print(cv_results_df)
-#
-# # Get feature importances from our random forest model
-# importances = grid_rf_reg.best_estimator_.feature_importances_
-# imp_df = pd.DataFrame(list(importances), columns=['Feature Importance'])
-# print(imp_df)
-#
-# #
-# # Get the index of importances from greatest importance to least
-# sorted_index = np.argsort(importances)[::-1]
-# x = range(len(importances))
-# print(sorted_index)
-# X.columns[733]
-#
-#
-# #
-# labels = np.array(X.columns)[sorted_index]
-# print(labels)
-#
-# print(importances[sorted_index])
-#
-# #
-#
-#
-# feature_imp_df = pd.concat([pd.DataFrame(importances[sorted_index], columns=['Importance']),
-#                  pd.DataFrame(labels, columns=['Feature'])], axis=1)
-#
-# #
-# print(feature_imp_df)
-# feature_imp_df[feature_imp_df['Feature'] == 'p_to_e_4Q_gth']
+
+# Random Forest
+# Run a random forest to check what are the most important features in predicting future stock prices
+X_train_rf = X_train
+y_train_rf = y_train.ravel()
+X_test_rf = X_test
+y_test_rf = y_test.ravel()
+
+np.shape(X_train_rf)
+
+# Grid Search
+
+rf_class = RandomForestClassifier(criterion='entropy')
+param_grid = {'max_depth': [2, 4, 8, 15], 'max_features': ['auto', 'sqrt','log2'], 'random_state': [21]}
+
+# Create a GridSearchCV object
+grid_rf_class = GridSearchCV(
+    estimator=rf_class,
+    param_grid=param_grid,
+    scoring='roc_auc',
+    n_jobs=-1,
+    cv=5,
+    refit=True, return_train_score=True)
+
+print(grid_rf_class)
+
+grid_rf_class.fit(X_train_rf, y_train_rf)
+
+
+
+# Read the cv_results property into a dataframe & print it out
+cv_results_df = pd.DataFrame(grid_rf_class.cv_results_)
+cv_results_df
+
+# Extract and print the column with a dictionary of hyperparameters used
+column = cv_results_df.loc[:, ["params"]]
+column
+
+# Extract and print the row that had the best mean test score
+best_row = cv_results_df[cv_results_df["rank_test_score"] == 1]
+best_row
+
+# Print out the ROC_AUC score from the best-performing square
+best_score = grid_rf_class.best_score_
+best_score
+
+# Create a variable from the row related to the best-performing square
+cv_results_df = pd.DataFrame(grid_rf_class.cv_results_)
+best_row = cv_results_df.loc[[grid_rf_class.best_index_]]
+best_row
