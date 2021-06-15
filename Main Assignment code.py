@@ -91,8 +91,8 @@ def seaborn_lm_plt(input_table, close_val, future_value):
 @timer
 def null_value_pc(table):
     missing_tbl = pd.DataFrame(table.isnull().sum(), columns=['num missing'])
-    missing_tbl['missing_pc'] = missing_tbl['num missing'] / mdl_data.shape[0]
-    print(missing_tbl)
+    missing_tbl['missing_pc'] = missing_tbl['num missing'] / table.shape[0]
+    return missing_tbl
 
 
 # Function used for margin calculations
@@ -231,6 +231,8 @@ cf_data.shape  # 30 columns
 financial_results.shape  # 94 columns ( 7 + 25 (27-2 columns joining on) + 36 (39-2-1(rep currency)) + 26 (30-2-2) )
 # 78,126 rows
 
+
+
 columns_df = pd.DataFrame(financial_results.columns, columns=['Columns'])
 columns_df = columns_df.sort_values(by='Columns')
 print(columns_df)  # There are no longer any duplicate columns
@@ -239,6 +241,7 @@ print(columns_df)  # There are no longer any duplicate columns
 financial_results.info()  # Every field is saved as a character field
 financial_results.describe()  # No numeric fields so the output is not useful
 financial_results.isnull().sum()  # There are a large number of nulls
+
 
 # Replace 'None' with NaN in order to convert the character fields to Numeric,
 # we will have to take another look at reportedCurrency later but for now we will convert it
@@ -263,6 +266,8 @@ financial_results_reorder.shape  # No change in the number of rows (78,126) and 
 # Create a new column called Book_value which is equal to Assets less liabilities
 financial_results_reorder['book_value'] = financial_results_reorder['totalAssets'] \
                                           - financial_results_reorder['totalLiabilities']
+
+
 
 # Convert the Date fields to dates
 financial_results_reorder['fiscalDateEnding'] = pd.to_datetime(financial_results_reorder['fiscalDateEnding']) \
@@ -332,6 +337,7 @@ financial_results_reorder = financial_results_reorder.drop(columns=financial_res
 financial_results_reorder.head(5)
 financial_results_reorder.shape  # the 4 columns have been dropped (94) and no change to the number of rows (78,126)
 financial_results_reorder.columns
+
 
 # Get the lagged data for each of the numeric columns
 # When looking at the 6 month forecasted growth/decline of a share price we do not want to look at just the
@@ -574,74 +580,99 @@ mdl_data_train = mdl_input_data[mdl_input_data.index < '2019-07']
 mdl_data_test = mdl_input_data[mdl_input_data.index == '2019-07']
 
 
-# Handling null values
-null_value_pc(mdl_data_train)  # there are a large number of Null values to deal with in all but 6 columns
+# Drop any rows where fiscalDateEnding is null (we will have no revenue or profit information for these rows)
+null_value_pc(mdl_data_train)
+mdl_data_train = mdl_data_train.dropna(how='all', subset=['fiscalDateEnding'])
+mdl_data_test = mdl_data_test.dropna(how='all', subset=['fiscalDateEnding'])
+
+# Drop any rows which do not contain the target variable. Drop these cases from both test and Live
+mdl_data_train = mdl_data_train.dropna(how='all', subset=['gt_10pc_gth'])
+mdl_data_test = mdl_data_test.dropna(how='all', subset=['gt_10pc_gth'])
+
+mdl_data_train = mdl_data_train.drop('reportedCurrency', axis=1)
+mdl_data_test = mdl_data_test.drop('reportedCurrency', axis=1)
+
+
+# Remaining null values
+null_df = null_value_pc(mdl_data_train)  # there are a large number of Null values to deal with in all but 6 columns
+null_df = null_df.sort_values(by='missing_pc')
+print(null_df)
+
+# Numeric fields
+mdl_train_numeric = mdl_data_train.iloc[:,10:]
+mdl_train_numeric.drop(columns='month', inplace=True)
+mdl_train_numeric.head()
+
+mdl_train_numeric = mdl_train_numeric.fillna(0)
+
+null_value_pc(mdl_train_numeric)  # there are a large number of Null values to deal with in all but 6 columns
+
+col_list = list(mdl_train_numeric.columns)
+col_list.remove('future_price_gth')
+print(col_list)
+corr_list = []
+
+for col in col_list:
+    corr = pd.DataFrame(mdl_train_numeric[[col,'future_price_gth']].corr())
+    corr = corr.iloc[0,1]
+    corr_list.append(corr)
+
+print(len(col_list))
+print(corr_list)
+print(len(corr_list))
+
+corr_df = pd.concat([pd.DataFrame(col_list,columns=['columns']), pd.DataFrame(corr_list
+                                                                              ,columns=['Correlation'])], axis=1)
+
+corr_df_nulls = pd.merge(null_df, corr_df, left_index=True, right_on='columns')
+print(corr_df_nulls.sort_values(by='Correlation'))
+
+
+all_corrs = mdl_train_numeric.corr()
+
+
 
 # Sector
-mdl_data['Sector'].unique()  # nan and 'None' in the column
-mdl_data['Sector'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
-mdl_data['Sector'].unique()  # no nan or 'None' values in the column
-mdl_data['Sector'].isnull().sum()  # 0 value returned
+mdl_data_train['Sector'].unique()  # nan and 'None' in the column
+mdl_data_train['Sector'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
+mdl_data_train['Sector'].unique()  # no nan or 'None' values in the column
+mdl_data_train['Sector'].isnull().sum()  # 0 value returned
+
+mdl_data_test['Sector'].unique()  # nan and 'None' in the column
+mdl_data_test['Sector'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
+mdl_data_test['Sector'].unique()  # no nan or 'None' values in the column
+mdl_data_test['Sector'].isnull().sum()  # 0 value returned
+
 
 # Industry
-mdl_data['Industry'].isnull().sum()  # 120 missing values
-mdl_data['Industry'].unique()  # 'None' values in the column
-mdl_data['Industry'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
-mdl_data['Industry'].unique()  # no 'None' values in the column
-mdl_data['Industry'].isnull().sum()  # 0 value returned
+mdl_data_train['Industry'].isnull().sum()  # 120 missing values
+mdl_data_train['Industry'].unique()  # 'None' values in the column
+mdl_data_train['Industry'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
+mdl_data_train['Industry'].unique()  # no 'None' values in the column
+mdl_data_train['Industry'].isnull().sum()  # 0 value returned
 
-null_value_pc(mdl_data)  # Sector and industry no longer have missing values
+mdl_data_test['Industry'].isnull().sum()  # 120 missing values
+mdl_data_test['Industry'].unique()  # 'None' values in the column
+mdl_data_test['Industry'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
+mdl_data_test['Industry'].unique()  # no 'None' values in the column
+mdl_data_test['Industry'].isnull().sum()  # 0 value returned
+
+
+null_value_pc(mdl_data_train)  # Sector and industry no longer have missing values
 
 # We need to drop the 'future_price' from our model to prevent data leakage
-mdl_data.drop('future_price', axis=1, inplace=True)
-mdl_data.shape  # 40,656 rows and 468 columns (469 - 1)
-
-# The most important null field which needs to be investigated is the target variable which is the 'future_price_gth'
-# field
-# After investigating a number of the fields which are missing I have concluded that the stock prices were not there
-# for that timepoint and so the rows should be deleted.
-mdl_data.loc[mdl_data['future_price_gth'].isnull()]
-mdl_data.loc[mdl_data['Symbol'] == 'AAC', ['Symbol', 'close_price', 'future_price_gth']]
-
-mdl_data['future_price_gth'].isnull().sum()  # We are looking to drop 6,266 rows
-mdl_data.shape  # currently 40,656 rows and 468 columns
-mdl_data.dropna(how='all', subset=['future_price_gth'], inplace=True)
-mdl_data.shape  # updated dataset has 34,390 rows (40,656 - 6,266) and 468 columns
-
-null_value_pc(mdl_data)
-# There are 3,823 cases that have a missing 'fiscalDateEnding' and 'reportedDate.' These rows correspond to rows with
-# missing EPS and revenue information and so should be dropped from the model
-
-mdl_data.dropna(how='all', subset=['fiscalDateEnding'], inplace=True)
-mdl_data.shape  # updated dataset has 30,567 rows (34,390 - 3,823) and 468 columns
-
-null_value_pc(mdl_data)  # drop the reportedCurrency column as we already have a Currency column
-mdl_data.drop('reportedCurrency', axis=1, inplace=True)
-mdl_data.shape  # updated dataset has 30,567 rows  and 467 columns (468 -1)
-
-null_value_pc(mdl_data)
-# replace the estimated EPS with the reported EPS when missing, surprise and surprise Percentage should then be zero
-
-mdl_data['estimatedEPS'].fillna(mdl_data['reportedEPS'], inplace=True)
-mdl_data['estimatedEPS'].isnull().sum()  # no missing values
-
-# Replace all other missing values with 0
-# Revenue, gross profit and other values which were null had very few nulls......
-mdl_data.fillna(0, inplace=True)
-mdl_data.isnull().sum()  # no missing values
-
-mdl_data.dtypes
-mdl_data.drop(['fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
-mdl_data.shape  # updated dataset has 30,567 rows  and 465 columns (467 -2)
-
-##################################################################################################################
-# Section 3.2 - Feature selection
-##################################################################################################################
+mdl_data_train.drop(['future_price','future_price_gth'], axis=1, inplace=True)
+mdl_data_test.drop(['future_price','future_price_gth'], axis=1, inplace=True)
+mdl_data_train.shape  # 40,656 rows and 468 columns (469 - 1)
 
 ##
+
+null_value_pc(mdl_data)  # drop the reportedCurrency column as we already have a Currency column
+##
+
 # Assess the character variables
-print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('datatype'))
-mdl_input_data.info()
+print(pd.DataFrame(mdl_data_train.dtypes, columns=['datatype']).sort_values('datatype'))
+mdl_data_train.info()
 # useful for putting all of the character fields at the bottom of the print.
 
 # There are 9 character fields before we get dummy values for these fields we need to look into them:
@@ -662,18 +693,38 @@ print(unique_vals)
 
 # Without doing any statistical tests we can see that there is clearly large differences between different industries
 # We will drop sector from our model and keep Industry
-mdl_input_data[['Sector', 'Industry', 'future_price_gth']].groupby(by=['Sector', 'Industry']).mean()
+mdl_data_train[['Sector', 'Industry', 'future_price_gth']].groupby(by=['Sector', 'Industry']).mean()
 
 # Drop the required columns in a new dataframe called "model_input_data"
-mdl_input_data = mdl_input_data.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
+mdl_data_train = mdl_data_train.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
 
-print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('datatype'))  # 3 character fields remaining
+print(pd.DataFrame(mdl_data_train.dtypes, columns=['datatype']).sort_values('datatype'))  # 3 character fields remaining
 
 
-# Replace the inf values with 0 (this has occurred where we have price information but not revenue so Price
-# to revenue is infinity)
-mdl_input_data.fillna(0, inplace=True)
-mdl_input_data.isnull().sum()  # no missing values
+#
+
+#
+
+
+# Replace all other missing values with 0
+# Revenue, gross profit and other values which were null had very few nulls......
+null_value_pc(mdl_data_train)
+
+mdl_data_train.fillna(0, inplace=True)
+mdl_data_test.fillna(0, inplace=True)
+mdl_data_train.isnull().sum()  # no missing values
+mdl_data_test.isnull().sum()  # no missing values
+
+
+ax = plt.gca()
+sns.scatterplot(data = mdl_data_train, x= 'paymentsForRepurchaseOfPreferredStock', y='future_price_gth')
+ax.set_yscale('log')
+ax.set_xscale('log')
+
+#
+
+##
+
 #
 ##################################################################################################################
 # Section 4 - Modelling
@@ -716,95 +767,92 @@ y_train = sc_y_train.fit_transform(y_train)
 y_test = sc_y_test.fit_transform(y_test)
 
 
-# Linear regression model
-
-# Build model
-lin_reg = LinearRegression()
-lin_reg.fit(X_train, y_train)
-
-lin_reg.score(X_train, y_train)  # 19.44%
-lin_reg.score(X_test, y_test)  # << 0% - we have overfit the model
-
-lin_reg.coef_[0]
-print(X)
-
-# Display two vectors, the y predicted v y train
-y_pred_df = pd.DataFrame(lin_reg.predict(X_test), columns=['y_pred'])
-y_test_df = pd.DataFrame(y_test, columns=['y_test'])
-lin_reg_pred = pd.concat([y_test_df, y_pred_df.set_index(y_test_df.index)], axis=1)
-print(lin_reg_pred)
-
-# Visually comparing the predicted values for profit versus actual
-sns.scatterplot(data=lin_reg_pred, x='y_pred', y='y_test', palette='deep', legend=False)
-plt.xlabel('Predicted Stock Price', size=12)
-plt.ylabel('Actual Stock Price', size=12)
-plt.title("Predicted v Actual Stock Price", fontdict={'size': 16})
-plt.tight_layout()
-plt.show()
+# # Linear regression model
 #
-# Run a random forest to check what are the most important features in predicting future stock prices
-X_train_rf = X_train
-y_train_rf = y_train.ravel()
-X_test_rf = X_test
-y_test_rf = y_test.ravel()
-
-np.shape(X_train_rf)
-
-# Grid Search
-
-rfr = RandomForestRegressor(criterion='mse')
-param_grid = [{'n_estimators': [20, 50, 100, 200], 'max_depth': [2, 4, 8], 'max_features': ['auto', 'sqrt']
-                  , 'random_state': [21]}]
-
-# Create a GridSearchCV object
-grid_rf_reg = GridSearchCV(
-    estimator=rfr,
-    param_grid=param_grid,
-    scoring='r2',
-    n_jobs=-1,
-    cv=3)
-
-print(grid_rf_reg)
-
-grid_rf_reg.fit(X_train_rf, y_train_rf)  # Fitting 3 folds
-
-best_rsqr = grid_rf_reg.best_score_
-best_parameters = grid_rf_reg.best_params_
-print("Best R squared: : {:.2f} %".format(best_rsqr * 100))
-print("Best Parameters:", best_parameters)
-
-# Read the cv_results property into a dataframe & print it out
-cv_results_df = pd.DataFrame(grid_rf_reg.cv_results_)
-print(cv_results_df)
-
-# Get feature importances from our random forest model
-importances = grid_rf_reg.best_estimator_.feature_importances_
-imp_df = pd.DataFrame(list(importances), columns=['Feature Importance'])
-print(imp_df)
-
+# # Build model
+# lin_reg = LinearRegression()
+# lin_reg.fit(X_train, y_train)
 #
-# Get the index of importances from greatest importance to least
-sorted_index = np.argsort(importances)[::-1]
-x = range(len(importances))
-print(sorted_index)
-X.columns[733]
-
-
+# lin_reg.score(X_train, y_train)  # 19.44%
+# lin_reg.score(X_test, y_test)  # << 0% - we have overfit the model
 #
-labels = np.array(X.columns)[sorted_index]
-print(labels)
-
-print(importances[sorted_index])
-
+# lin_reg.coef_[0]
+# print(X)
 #
-
-a = importances[sorted_index]
-print(a)
-print(type(a))
-
-feature_imp_df = pd.concat([pd.DataFrame(importances[sorted_index], columns=['Importance']),
-                 pd.DataFrame(labels, columns=['Feature'])], axis=1)
-
+# # Display two vectors, the y predicted v y train
+# y_pred_df = pd.DataFrame(lin_reg.predict(X_test), columns=['y_pred'])
+# y_test_df = pd.DataFrame(y_test, columns=['y_test'])
+# lin_reg_pred = pd.concat([y_test_df, y_pred_df.set_index(y_test_df.index)], axis=1)
+# print(lin_reg_pred)
 #
-print(feature_imp_df)
-feature_imp_df[feature_imp_df['Feature'] == 'p_to_e_4Q_gth']
+# # Visually comparing the predicted values for profit versus actual
+# sns.scatterplot(data=lin_reg_pred, x='y_pred', y='y_test', palette='deep', legend=False)
+# plt.xlabel('Predicted Stock Price', size=12)
+# plt.ylabel('Actual Stock Price', size=12)
+# plt.title("Predicted v Actual Stock Price", fontdict={'size': 16})
+# plt.tight_layout()
+# plt.show()
+# #
+# # Run a random forest to check what are the most important features in predicting future stock prices
+# X_train_rf = X_train
+# y_train_rf = y_train.ravel()
+# X_test_rf = X_test
+# y_test_rf = y_test.ravel()
+#
+# np.shape(X_train_rf)
+#
+# # Grid Search
+#
+# rfr = RandomForestRegressor(criterion='mse')
+# param_grid = [{'n_estimators': [20, 50, 100, 200], 'max_depth': [2, 4, 8], 'max_features': ['auto', 'sqrt']
+#                   , 'random_state': [21]}]
+#
+# # Create a GridSearchCV object
+# grid_rf_reg = GridSearchCV(
+#     estimator=rfr,
+#     param_grid=param_grid,
+#     scoring='r2',
+#     n_jobs=-1,
+#     cv=3)
+#
+# print(grid_rf_reg)
+#
+# grid_rf_reg.fit(X_train_rf, y_train_rf)  # Fitting 3 folds
+#
+# best_rsqr = grid_rf_reg.best_score_
+# best_parameters = grid_rf_reg.best_params_
+# print("Best R squared: : {:.2f} %".format(best_rsqr * 100))
+# print("Best Parameters:", best_parameters)
+#
+# # Read the cv_results property into a dataframe & print it out
+# cv_results_df = pd.DataFrame(grid_rf_reg.cv_results_)
+# print(cv_results_df)
+#
+# # Get feature importances from our random forest model
+# importances = grid_rf_reg.best_estimator_.feature_importances_
+# imp_df = pd.DataFrame(list(importances), columns=['Feature Importance'])
+# print(imp_df)
+#
+# #
+# # Get the index of importances from greatest importance to least
+# sorted_index = np.argsort(importances)[::-1]
+# x = range(len(importances))
+# print(sorted_index)
+# X.columns[733]
+#
+#
+# #
+# labels = np.array(X.columns)[sorted_index]
+# print(labels)
+#
+# print(importances[sorted_index])
+#
+# #
+#
+#
+# feature_imp_df = pd.concat([pd.DataFrame(importances[sorted_index], columns=['Importance']),
+#                  pd.DataFrame(labels, columns=['Feature'])], axis=1)
+#
+# #
+# print(feature_imp_df)
+# feature_imp_df[feature_imp_df['Feature'] == 'p_to_e_4Q_gth']
