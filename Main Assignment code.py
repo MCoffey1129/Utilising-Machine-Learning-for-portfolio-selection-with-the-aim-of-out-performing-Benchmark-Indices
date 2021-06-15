@@ -437,6 +437,8 @@ stk_prices.loc[stk_prices['dt_m'] == '2021-01', 'future_price'] = stk_prices['cl
 stk_prices.loc[stk_prices['dt_m'] != '2021-01', 'future_price'] = stk_prices['close_price_-6M_lag']
 stk_prices.loc[stk_prices['dt_m'] == '2021-01', 'future_price_gth'] = stk_prices['close_price_-5M_gth']
 stk_prices.loc[stk_prices['dt_m'] != '2021-01', 'future_price_gth'] = stk_prices['close_price_-6M_gth']
+stk_prices.loc[stk_prices['future_price_gth'] >= 0.1, 'gt_10pc_gth'] = 1
+stk_prices.loc[stk_prices['future_price_gth'] < 0.1, 'gt_10pc_gth'] = 0
 stk_prices.tail(100)
 
 # Make dt_m the index
@@ -444,6 +446,7 @@ stk_prices.drop("dt", inplace=True, axis=1)
 stk_prices.index = stk_prices['dt_m'].rename("dt")
 stk_prices.head(25)
 stk_prices.columns
+stk_prices['gt_10pc_gth'].value_counts()
 
 # Drop unneeded columns
 stk_prices = stk_prices.drop(['dt_m', 'close_price_-5M_gth', 'close_price_-6M_gth',
@@ -477,7 +480,7 @@ b['diff'] = b['future_price'] - b['close_price']
 print(b.sort_values(by=['diff'], ascending=False))
 
 ##################################################################################################################
-# Section 3.1 - Replacing nulls
+# Section 3.1 - Finalise the data required
 ##################################################################################################################
 
 # Join the three tables together by index
@@ -495,69 +498,7 @@ financial_results_reorder.shape  # 31,399 rows and 454 columns
 stk_prices.shape  # 38,078 rows and 13 columns
 mdl_data.shape  # 40,656 rows and 473 columns (454 + 8 + 13 - 2 (Symbol which we are joining on))
 
-# Handling null values
-null_value_pc(mdl_data)  # there are a large number of Null values to deal with in all but 6 columns
 
-# Sector
-mdl_data['Sector'].unique()  # nan and 'None' in the column
-mdl_data['Sector'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
-mdl_data['Sector'].unique()  # no nan or 'None' values in the column
-mdl_data['Sector'].isnull().sum()  # 0 value returned
-
-# Industry
-mdl_data['Industry'].isnull().sum()  # 120 missing values
-mdl_data['Industry'].unique()  # 'None' values in the column
-mdl_data['Industry'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
-mdl_data['Industry'].unique()  # no 'None' values in the column
-mdl_data['Industry'].isnull().sum()  # 0 value returned
-
-null_value_pc(mdl_data)  # Sector and industry no longer have missing values
-
-# We need to drop the 'future_price' from our model to prevent data leakage
-mdl_data.drop('future_price', axis=1, inplace=True)
-mdl_data.shape  # 40,656 rows and 468 columns (469 - 1)
-
-# The most important null field which needs to be investigated is the target variable which is the 'future_price_gth'
-# field
-# After investigating a number of the fields which are missing I have concluded that the stock prices were not there
-# for that timepoint and so the rows should be deleted.
-mdl_data.loc[mdl_data['future_price_gth'].isnull()]
-mdl_data.loc[mdl_data['Symbol'] == 'AAC', ['Symbol', 'close_price', 'future_price_gth']]
-
-mdl_data['future_price_gth'].isnull().sum()  # We are looking to drop 6,266 rows
-mdl_data.shape  # currently 40,656 rows and 468 columns
-mdl_data.dropna(how='all', subset=['future_price_gth'], inplace=True)
-mdl_data.shape  # updated dataset has 34,390 rows (40,656 - 6,266) and 468 columns
-
-null_value_pc(mdl_data)
-# There are 3,823 cases that have a missing 'fiscalDateEnding' and 'reportedDate.' These rows correspond to rows with
-# missing EPS and revenue information and so should be dropped from the model
-
-mdl_data.dropna(how='all', subset=['fiscalDateEnding'], inplace=True)
-mdl_data.shape  # updated dataset has 30,567 rows (34,390 - 3,823) and 468 columns
-
-null_value_pc(mdl_data)  # drop the reportedCurrency column as we already have a Currency column
-mdl_data.drop('reportedCurrency', axis=1, inplace=True)
-mdl_data.shape  # updated dataset has 30,567 rows  and 467 columns (468 -1)
-
-null_value_pc(mdl_data)
-# replace the estimated EPS with the reported EPS when missing, surprise and surprise Percentage should then be zero
-
-mdl_data['estimatedEPS'].fillna(mdl_data['reportedEPS'], inplace=True)
-mdl_data['estimatedEPS'].isnull().sum()  # no missing values
-
-# Replace all other missing values with 0
-# Revenue, gross profit and other values which were null had very few nulls......
-mdl_data.fillna(0, inplace=True)
-mdl_data.isnull().sum()  # no missing values
-
-mdl_data.dtypes
-mdl_data.drop(['fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
-mdl_data.shape  # updated dataset has 30,567 rows  and 465 columns (467 -2)
-
-##################################################################################################################
-# Section 3.2 - Feature selection
-##################################################################################################################
 
 mdl_input_data = mdl_data
 
@@ -621,6 +562,83 @@ print(mdl_input_data.loc[mdl_input_data['Symbol'] == 'AAIC', ['totalRevenue', 't
 ds = mdl_input_data[mdl_input_data.isin([np.inf, -np.inf])].sum()
 print(ds)
 
+
+##################################################################################################################
+# Section 3.2 - Replacing nulls and Feature Selection
+##################################################################################################################
+
+
+# Split the data into train and test in order to prevent data leakage. Any decision made around dropping columns
+# or replacing nulls needs to be completed assuming we have no information on the test set
+mdl_data_train = mdl_input_data[mdl_input_data.index < '2019-07']
+mdl_data_test = mdl_input_data[mdl_input_data.index == '2019-07']
+
+
+# Handling null values
+null_value_pc(mdl_data_train)  # there are a large number of Null values to deal with in all but 6 columns
+
+# Sector
+mdl_data['Sector'].unique()  # nan and 'None' in the column
+mdl_data['Sector'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
+mdl_data['Sector'].unique()  # no nan or 'None' values in the column
+mdl_data['Sector'].isnull().sum()  # 0 value returned
+
+# Industry
+mdl_data['Industry'].isnull().sum()  # 120 missing values
+mdl_data['Industry'].unique()  # 'None' values in the column
+mdl_data['Industry'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
+mdl_data['Industry'].unique()  # no 'None' values in the column
+mdl_data['Industry'].isnull().sum()  # 0 value returned
+
+null_value_pc(mdl_data)  # Sector and industry no longer have missing values
+
+# We need to drop the 'future_price' from our model to prevent data leakage
+mdl_data.drop('future_price', axis=1, inplace=True)
+mdl_data.shape  # 40,656 rows and 468 columns (469 - 1)
+
+# The most important null field which needs to be investigated is the target variable which is the 'future_price_gth'
+# field
+# After investigating a number of the fields which are missing I have concluded that the stock prices were not there
+# for that timepoint and so the rows should be deleted.
+mdl_data.loc[mdl_data['future_price_gth'].isnull()]
+mdl_data.loc[mdl_data['Symbol'] == 'AAC', ['Symbol', 'close_price', 'future_price_gth']]
+
+mdl_data['future_price_gth'].isnull().sum()  # We are looking to drop 6,266 rows
+mdl_data.shape  # currently 40,656 rows and 468 columns
+mdl_data.dropna(how='all', subset=['future_price_gth'], inplace=True)
+mdl_data.shape  # updated dataset has 34,390 rows (40,656 - 6,266) and 468 columns
+
+null_value_pc(mdl_data)
+# There are 3,823 cases that have a missing 'fiscalDateEnding' and 'reportedDate.' These rows correspond to rows with
+# missing EPS and revenue information and so should be dropped from the model
+
+mdl_data.dropna(how='all', subset=['fiscalDateEnding'], inplace=True)
+mdl_data.shape  # updated dataset has 30,567 rows (34,390 - 3,823) and 468 columns
+
+null_value_pc(mdl_data)  # drop the reportedCurrency column as we already have a Currency column
+mdl_data.drop('reportedCurrency', axis=1, inplace=True)
+mdl_data.shape  # updated dataset has 30,567 rows  and 467 columns (468 -1)
+
+null_value_pc(mdl_data)
+# replace the estimated EPS with the reported EPS when missing, surprise and surprise Percentage should then be zero
+
+mdl_data['estimatedEPS'].fillna(mdl_data['reportedEPS'], inplace=True)
+mdl_data['estimatedEPS'].isnull().sum()  # no missing values
+
+# Replace all other missing values with 0
+# Revenue, gross profit and other values which were null had very few nulls......
+mdl_data.fillna(0, inplace=True)
+mdl_data.isnull().sum()  # no missing values
+
+mdl_data.dtypes
+mdl_data.drop(['fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
+mdl_data.shape  # updated dataset has 30,567 rows  and 465 columns (467 -2)
+
+##################################################################################################################
+# Section 3.2 - Feature selection
+##################################################################################################################
+
+##
 # Assess the character variables
 print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('datatype'))
 mdl_input_data.info()
@@ -656,8 +674,7 @@ print(pd.DataFrame(mdl_input_data.dtypes, columns=['datatype']).sort_values('dat
 # to revenue is infinity)
 mdl_input_data.fillna(0, inplace=True)
 mdl_input_data.isnull().sum()  # no missing values
-
-
+#
 ##################################################################################################################
 # Section 4 - Modelling
 ##################################################################################################################
@@ -736,7 +753,7 @@ np.shape(X_train_rf)
 # Grid Search
 
 rfr = RandomForestRegressor(criterion='mse')
-param_grid = [{'n_estimators': [20, 50, 100, 200, 1000], 'max_depth': [2, 4, 8], 'max_features': ['auto', 'sqrt']
+param_grid = [{'n_estimators': [20, 50, 100, 200], 'max_depth': [2, 4, 8], 'max_features': ['auto', 'sqrt']
                   , 'random_state': [21]}]
 
 # Create a GridSearchCV object
