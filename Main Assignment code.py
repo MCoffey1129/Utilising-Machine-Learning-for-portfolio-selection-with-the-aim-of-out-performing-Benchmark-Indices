@@ -521,6 +521,17 @@ mdl_input_data['market_cap_2Q_lag'] = mdl_input_data['commonStockSharesOutstandi
 mdl_input_data['market_cap_4Q_lag'] = mdl_input_data['commonStockSharesOutstanding_4Q_lag'] \
                                       * mdl_input_data['close_price_12M_lag']
 
+
+# Create a simplified EV column (free cashflow equals op cf - capex)
+mdl_input_data['EV_simple'] = mdl_input_data['market_cap'] - mdl_input_data['currentDebt']
+                                + mdl_input_data['operatingCashflow'] - mdl_input_data['capitalExpenditures']
+mdl_input_data['EV_simple_1Q_lag'] = mdl_input_data['commonStockSharesOutstanding_1Q_lag'] \
+                                      * mdl_input_data['close_price_3M_lag']
+mdl_input_data['market_cap_2Q_lag'] = mdl_input_data['commonStockSharesOutstanding_2Q_lag'] \
+                                      * mdl_input_data['close_price_6M_lag']
+mdl_input_data['market_cap_4Q_lag'] = mdl_input_data['commonStockSharesOutstanding_4Q_lag'] \
+                                      * mdl_input_data['close_price_12M_lag']
+
 # Create new features required for modelling i.e. P/E, gross margin, net margin etc.
 
 # Profitability metrics
