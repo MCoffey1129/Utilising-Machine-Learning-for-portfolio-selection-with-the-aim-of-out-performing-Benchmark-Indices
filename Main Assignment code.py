@@ -808,16 +808,19 @@ mdl_data_test.info()
 # The original random forest model had an R squared of 1.3% where most of the test scores were actually negative
 #
 
-X_train_df = mdl_data_train.drop(['gt_10pc_gth'], axis=1)
+X_train_df = mdl_data_train.drop(['gt_10pc_gth','month_Jul'], axis=1)
 X_train_df = pd.get_dummies(data=X_train_df, drop_first=True)
-X_train_df = X_train_df.drop(['month_Jul'], axis=1)
 y_train_df = mdl_data_train['gt_10pc_gth']
 X_test_df = mdl_data_test.drop(['gt_10pc_gth'], axis=1)
 X_test_df = pd.get_dummies(data=X_test_df, drop_first=True)
+X_test_df = X_test_df.drop(['Industry_Oil & Gas Pipelines'], axis=1)
 y_test_df = mdl_data_test['gt_10pc_gth']
 
 
-X_train_df['Industry'].value_counts()
+X_train_df.shape
+X_test_df.shape
+y_train_df.shape
+y_test_df.shape
 
 
 ##
