@@ -34,6 +34,7 @@ from numpy import inf
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import chi2
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
 
 
 # Functions
@@ -481,6 +482,7 @@ seaborn_lm_plt(stk_prices, 100, 500)
 seaborn_lm_plt(stk_prices, 5, 20)
 seaborn_lm_plt(stk_prices, 5, 1000000)  # Outlier is Gamestop share increase from July '20 to Jan '21
 
+
 # Code for checking the stocks with the largest 6 month gains on companies who had a share price of less than 5 euro
 # GameStop's (GME) share price increased from €4.01 in July 2020 to €320.99 in Jan '21
 # This is an outlier as the share increase was not a result of the fundamentals of the company.
@@ -523,15 +525,24 @@ mdl_input_data['market_cap_4Q_lag'] = mdl_input_data['commonStockSharesOutstandi
 
 
 # Create a simplified EV column (free cashflow equals op cf - capex)
-mdl_input_data['EV_simple'] = mdl_input_data['market_cap'] - mdl_input_data['currentDebt'] \
-                            + mdl_input_data['operatingCashflow'] - mdl_input_data['capitalExpenditures']
-mdl_input_data['EV_simple_1Q_lag'] = mdl_input_data['market_cap_1Q_lag'] - mdl_input_data['currentDebt_1Q_lag']
-                            + mdl_input_data['operatingCashflow_1Q_lag'] - mdl_input_data['capitalExpenditures_1Q_lag']
-mdl_input_data['EV_simple_2Q_lag'] = mdl_input_data['market_cap_2Q_lag'] - mdl_input_data['currentDebt_2Q_lag']
-                            + mdl_input_data['operatingCashflow_2Q_lag'] - mdl_input_data['capitalExpenditures_2Q_lag']
-mdl_input_data['EV_simple_4Q_lag'] = mdl_input_data['market_cap_4Q_lag'] - mdl_input_data['currentDebt_4Q_lag']
-                            + mdl_input_data['operatingCashflow_4Q_lag'] - mdl_input_data['capitalExpenditures_4Q_lag']
+mdl_input_data['EV_simple'] = mdl_input_data['market_cap'].fillna(0) - mdl_input_data['currentDebt'].fillna(0) \
+                            + mdl_input_data['operatingCashflow'].fillna(0)\
+                              - mdl_input_data['capitalExpenditures'].fillna(0)
+mdl_input_data['EV_simple_1Q_lag'] = mdl_input_data['market_cap_1Q_lag'].fillna(0)\
+                                     - mdl_input_data['currentDebt_1Q_lag'].fillna(0) \
+                            + mdl_input_data['operatingCashflow_1Q_lag'].fillna(0)\
+                                     - mdl_input_data['capitalExpenditures_1Q_lag'].fillna(0)
+mdl_input_data['EV_simple_2Q_lag'] = mdl_input_data['market_cap_2Q_lag'].fillna(0)\
+                                     - mdl_input_data['currentDebt_2Q_lag'].fillna(0) \
+                            + mdl_input_data['operatingCashflow_2Q_lag'].fillna(0)\
+                                     - mdl_input_data['capitalExpenditures_2Q_lag'].fillna(0)
+mdl_input_data['EV_simple_4Q_lag'] = mdl_input_data['market_cap_4Q_lag'].fillna(0)\
+                                     - mdl_input_data['currentDebt_4Q_lag'].fillna(0) \
+                            + mdl_input_data['operatingCashflow_4Q_lag'].fillna(0)\
+                                     - mdl_input_data['capitalExpenditures_4Q_lag'].fillna(0)
 
+
+mdl_input_data.loc[mdl_input_data['Symbol'] =='APLT', 'EV_simple']
 # Create new features required for modelling i.e. P/E, gross margin, net margin etc.
 
 # Profitability metrics
@@ -589,9 +600,11 @@ mdl_input_data_upd = pd.merge(mdl_input_data, industry_avg_rename, how='left', o
 
 for col1 in list(industry_avg):
         mdl_input_data_upd[col1 + '_v_ind_avg'] = mdl_input_data_upd[col1] - mdl_input_data_upd[col1 + '_ind_avg']
-        mdl_input_data_upd.drop([col1 + '_ind_avg'], axis=1)
+        mdl_input_data_upd.drop([col1 + '_ind_avg'], axis=1, inplace=True)
 
 
+
+'surprisePercentage_v_ind_avg'
 
 sns.boxplot(data=mdl_input_data_upd, x='gt_10pc_gth', y='surprisePercentage_v_ind_avg', whis=10)
 plt.yscale('log')
@@ -625,14 +638,26 @@ print(ds)
 
 # Split the data into train and test in order to prevent data leakage. Any decision made around dropping columns
 # or replacing nulls needs to be completed assuming we have no information on the test set
-mdl_data_train = mdl_input_data_upd[mdl_input_data_upd.index < '2019-07']
-mdl_data_test = mdl_input_data_upd[mdl_input_data_upd.index == '2019-07']
+mdl_data_test = mdl_input_data_upd[mdl_input_data_upd.index == '2020-07']
+mdl_data_train = mdl_input_data_upd[mdl_input_data_upd.index < '2020-07']
+mdl_deploy = mdl_input_data_upd[mdl_input_data_upd.index == '2021-01']
 
 
 # Drop any rows where fiscalDateEnding is null (we will have no revenue or profit information for these rows)
 null_value_pc(mdl_data_train)
 mdl_data_train = mdl_data_train.dropna(how='all', subset=['fiscalDateEnding'])
 mdl_data_test = mdl_data_test.dropna(how='all', subset=['fiscalDateEnding'])
+
+# Drop any rows where totalRevenue is Null
+null_value_pc(mdl_data_train)
+mdl_data_train = mdl_data_train.dropna(how='all', subset=['totalRevenue'])
+mdl_data_test = mdl_data_test.dropna(how='all', subset=['totalRevenue'])
+
+# Drop any rows where grossProfit is Null
+null_value_pc(mdl_data_train)
+mdl_data_train = mdl_data_train.dropna(how='all', subset=['grossProfit'])
+mdl_data_test = mdl_data_test.dropna(how='all', subset=['grossProfit'])
+
 
 # Drop any rows which do not contain the target variable. Drop these cases from both test and Live
 mdl_data_train = mdl_data_train.dropna(how='all', subset=['gt_10pc_gth'])
@@ -710,10 +735,13 @@ mdl_data_test['Industry'].isnull().sum()  # 0 value returned
 null_value_pc(mdl_data_train)  # Sector and industry no longer have missing values
 
 # We need to drop the 'future_price' and 'future_price_gth' from our model
+future_test_pc_df = mdl_data_test[['future_price_gth']]
 mdl_data_train.drop(['future_price','future_price_gth', 'fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
 mdl_data_test.drop(['future_price','future_price_gth', 'fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
 
 mdl_data_train.shape
+future_test_pc_df.head()
+
 ##
 
 
@@ -743,6 +771,7 @@ print(unique_vals)
 mdl_data_train[['Sector', 'Industry', 'gt_10pc_gth']].groupby(by=['Sector', 'Industry']).mean()
 
 # Drop the required columns in a new dataframe called "model_input_data"
+symbol_test_df = mdl_data_test[['Symbol']]
 mdl_data_train = mdl_data_train.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
 mdl_data_test = mdl_data_test.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
 
@@ -781,12 +810,11 @@ mdl_data_test.info()
 
 X_train_df = mdl_data_train.drop(['gt_10pc_gth'], axis=1)
 X_train_df = pd.get_dummies(data=X_train_df, drop_first=True)
+X_train_df = X_train_df.drop(['month_Jul'], axis=1)
 y_train_df = mdl_data_train['gt_10pc_gth']
 X_test_df = mdl_data_test.drop(['gt_10pc_gth'], axis=1)
 X_test_df = pd.get_dummies(data=X_test_df, drop_first=True)
 y_test_df = mdl_data_test['gt_10pc_gth']
-
-
 
 ##
 # y_train_df.to_csv(r'Files\y_train_df.csv', index=True, header=True)
@@ -827,14 +855,14 @@ X_test = imputer.fit_transform(X_test)
 # X_train_red.shape
 # y_train.shape
 
-# X_train.shape
+X_train.shape
 
-select_feature = SelectKBest(chi2, k=1035).fit(X_train, y_train)
+select_feature = SelectKBest(chi2, k=1000).fit(X_train, y_train)
 select_features_df = pd.DataFrame({'Feature': list(X_train_df.columns),
                                    'Scores' : select_feature.scores_})
 a = select_features_df.sort_values(by='Scores', ascending=False)
 a.head(50)
-a.loc[a['Feature']=='op_cf_v_ind_avg']
+a.loc[a['Feature']=='Industry_Food Distribution']
 
 X_train_chi = select_feature.transform(X_train)
 X_test_chi = select_feature.transform(X_test)
@@ -849,18 +877,18 @@ np.shape(X_train_rv)
 
 
 # Recursive feature elimination
-from sklearn.feature_selection import RFECV
-rfecv= RFECV(estimator=RandomForestClassifier(), step=100, cv=5, scoring='precision')
-rfecv= rfecv.fit(X_train_rv, y_train_rv)
-print('Optimal number of features : ' , rfecv.n_features_)
-print('Best features :' , X_train_df.columns[rfecv.support_])
-
-
-plt.figure()
-plt.xlabel("No of features selected")
-plt.ylabel("Cross Validation score")
-plt.plot(range(1,len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
-plt.show()
+# from sklearn.feature_selection import RFECV
+# rfecv= RFECV(estimator=RandomForestClassifier(), step=100, cv=5, scoring='precision')
+# rfecv= rfecv.fit(X_train_rv, y_train_rv)
+# print('Optimal number of features : ' , rfecv.n_features_)
+# print('Best features :' , X_train_df.columns[rfecv.support_])
+#
+#
+# plt.figure()
+# plt.xlabel("No of features selected")
+# plt.ylabel("Cross Validation score")
+# plt.plot(range(1,len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
+# plt.show()
 
 
 
@@ -883,59 +911,103 @@ print(y_test_rv)
 # Run a random forest to check what are the most important features in predicting future stock prices
 
 
-# Grid Search
+#################################################################################################################
+# Section 0 - Grid Search to find the best hyperparameters to use
+#################################################################################################################
 
-rf_class = RandomForestClassifier(criterion='entropy')
-param_grid = {'n_estimators' : [200], 'max_features': ['auto', 'sqrt','log2']}
+model_params = {
+    'svm' : {'model' : SVC(kernel = 'rbf', random_state = 0),
+             'params' : {'C': [0.25, 0.5, 0.75, 1, 5], 'kernel': ['linear']},
+                {'C': [0.25, 0.5, 0.75, 1, 5], 'kernel': ['rbf'],
+                 'gamma': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]}},
 
-# Create a GridSearchCV object
-grid_rf_class = GridSearchCV(
-    estimator=rf_class,
-    param_grid=param_grid,
-    scoring='precision',
-    n_jobs=-1,
-    cv=5,
-    refit=True, return_train_score=True)
+    'random_forest' : { 'model': RandomForestClassifier(criterion='entropy', random_state=0),
+                        'params': {'n_estimators' : [50,100,200,500], 'max_features': ['auto', 'sqrt','log2'],
+                                   'class_weight' : [{0:0.3, 1:0.7},{0:0.2, 1:0.8},{0:0.1, 1:0.9}, {0:0.05, 1:0.95}}},
 
-print(grid_rf_class)
+    'knn' : { 'model' : KNeighborsClassifier(random_state=0),
+              'params' : {'n_neighbours':[2,3,5,9,15,25], 'p': [1,2], leaf_size : [1,2,12,25,100,200]}
+             }
+}
 
-grid_rf_class.fit(X_train_rv, y_train_rv)
+scores = []
 
-
-# Read the cv_results property into a dataframe & print it out
-cv_results_df = pd.DataFrame(grid_rf_class.cv_results_)
-print(cv_results_df)
-
-# Extract and print the column with a dictionary of hyperparameters used
-column = cv_results_df.loc[:, ["params"]]
-print(column)
-
-# Extract and print the row that had the best mean test score
-best_row = cv_results_df[cv_results_df["rank_test_score"] == 1]
-print(best_row)
-
-# Print out the ROC_AUC score from the best-performing square
-best_score = grid_rf_class.best_score_
-print(best_score)
-
-# Fit the best model
-clf= RandomForestClassifier(criterion='entropy', max_features ='log2', n_estimators=200)
-clf.fit(X_train_rv, y_train_rv)
-
-y_pred = clf.predict(X_test_rv)
-print(classification_report(y_test_rv, y_pred))
+for model_name, mp in model_params.items():
+    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='precision', cv=5, return_train_score= False)
+    clf.fit(X_train_rv, y_train_rv)
+    scores.append({
+        'model' : model_name,
+        'best_score' : clf.best_score_,
+        'best_params' : clf.best_params_
+    })
 
 
+print(clf)
 
+scores_df = pd.DataFrame(scores, columns=['model','best_score','best_params'])
+print(scores_df)
+
+
+#################################################################################################################
+# Section 1 - Stacking the models with the best hyperparameters
+#################################################################################################################
+
+# define the base models
+level0 = list()
+
+level0.append(('knn', KNeighborsClassifier()))
+level0.append(('cart', DecisionTreeClassifier()))
+level0.append(('svm', SVC()))
+level0.append(('bayes', GaussianNB()))
+
+# define meta learner model
+level1 = KNeighborsClassifier()
+
+# define the stacking ensemble
+model = StackingClassifier(estimators=level0, final_estimator=level1, cv=5)
+
+# fit the model on all available data
+model.fit(X_train, y_train)
+
+# predict the test data
+pred = model.predict(X_test)
+
+# # Read the cv_results property into a dataframe & print it out
+# cv_results_df = pd.DataFrame(grid_rf_class.cv_results_)
+# print(cv_results_df)
+#
+# # Extract and print the column with a dictionary of hyperparameters used
+# column = cv_results_df.loc[:, ["params"]]
+# print(column)
+#
+# # Extract and print the row that had the best mean test score
+# best_row = cv_results_df[cv_results_df["rank_test_score"] == 1]
+# print(best_row)
+#
+# # Print out the ROC_AUC score from the best-performing square
+# best_score = grid_rf_class.best_score_
+# print(best_score)
+#
+# # Fit the best model
+# clf= RandomForestClassifier(criterion='entropy', max_features ='log2', n_estimators=200)
+# clf.fit(X_train_rv, y_train_rv)
+#
+# y_pred = clf.predict(X_test_rv)
+# print(classification_report(y_test_rv, y_pred))
+
+
+#################################################################################################################
+# Section 2 - Genetic Algorithm
+#################################################################################################################
 
 # Genetic Algorithms
 # Assign the values outlined to the inputs
 from tpot import TPOTClassifier
 
-number_generations = 3  # nothing to do with the dataset
-population_size = 4  # Start with 4 algorithms
-offspring_size = 3
-scoring_function = 'precision'
+# number_generations = 3  # nothing to do with the dataset
+# population_size = 4  # Start with 4 algorithms
+# offspring_size = 3
+# scoring_function = 'precision'
 
 # Create the tpot classifier
 # tpot_clf = TPOTClassifier(generations=number_generations, population_size=population_size,
@@ -948,6 +1020,10 @@ scoring_function = 'precision'
 # # Score on the test set - 33.6%
 # tpot_clf.score(X_test_rv, y_test_rv)
 
+
+#################################################################################################################
+# Section 3 - Boosted models
+#################################################################################################################
 
 # XGBoost
 
@@ -972,6 +1048,11 @@ from sklearn.model_selection import cross_val_score
 accuracies = cross_val_score(estimator = classifier, X = X_train_rv, y = y_train_rv, cv = 3)
 print("Accuracy: {:.2f} %".format(accuracies.mean()*100))
 print("Standard Deviation: {:.2f} %".format(accuracies.std()*100))
+
+
+#################################################################################################################
+# Section 4 - Neural Networks
+#################################################################################################################
 
 # Artificial Neural Network
 import tensorflow as tf
@@ -1020,8 +1101,54 @@ history = ann.fit(X_train_rv, y_train_rv, batch_size = 32, epochs = 100)
 
 
 # Plot the losses from the fit
+plt.plot(history.history['precision'])
 plt.plot(history.history['loss'])
 
 # Use the last loss as the title
-plt.title('Precision:' + str(round(history.history['loss'][-1], 6)))
+plt.title('Precision v Loss')
 plt.show()
+
+y_pred = ann.predict(X_test_rv)
+y_pred = (y_pred > 0.5)
+print(np.concatenate((y_pred.reshape(len(y_pred),1), y_test_rv.reshape(len(y_test_rv),1)),1))
+
+# Making the Confusion Matrix
+# The model has an accuracy score of 86.5%
+# But the recall is only 53% for customer's leaving (this is to be expected). See the classification report.
+cm = confusion_matrix(y_test_rv, y_pred)
+print(cm)
+cr = classification_report(y_test_rv, y_pred)
+print(cr)
+accuracy_score(y_test_rv, y_pred)
+
+
+y_pred.shape
+
+
+# Write out the CSV
+y_pred_df = pd.DataFrame(y_pred,columns=['prob'])
+y_pred.to_csv(r'Files\y_pred.csv', index=True, header=True)
+print(y_pred_df)
+
+chk = pd.concat([mdl_data_test, y_pred_df.set_index(mdl_data_test.index),
+                 future_test_pc_df.set_index(mdl_data_test.index),
+                 symbol_test_df.set_index(mdl_data_test.index)], axis=1)
+
+# chk.to_csv(r'Files\chk.csv', index=True, header=True)
+
+# print(chk)
+
+
+#################################################################################################################
+# Section 5 - Comparing the models
+#################################################################################################################
+
+
+#################################################################################################################
+# Section 6 - Top 30 cases from each model versus using Max Drawdown versus Max Sharpe Ratio
+#################################################################################################################
+
+
+#################################################################################################################
+# Section 7 - Implementation of the model at Jan '21
+#################################################################################################################
