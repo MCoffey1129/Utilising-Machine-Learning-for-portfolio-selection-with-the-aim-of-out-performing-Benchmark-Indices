@@ -118,10 +118,10 @@ model_params = {
                 {'C': [0.25, 0.5, 0.75, 1], 'kernel': ['rbf'], 'gamma': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]}},
 
     'random_forest' : { 'model': RandomForestClassifier(criterion='entropy', random_state=0),
-                        'params': {'n_estimators' : [50,100,200,500], 'max_features': ['auto', 'sqrt','log2']
+                        'params': {'n_estimators' : [50,100,200,500], 'max_features': ['auto', 'sqrt','log2'],
                                    'class_weight' : [{0:0.3, 1:0.7},{0:0.2, 1:0.8},{0:0.1, 1:0.9}, {0:0.05, 1:0.95}}},
 
-    'knn' : { 'model' : KNeighborsClassifier(),
+    'knn' : { 'model' : KNeighborsClassifier(random_state=0),
               'params' : {'n_neighbours':[2,3,5,9,15,25], 'p': [1,2], leaf_size : [1,2,12,25,100,200]}
              }
 }

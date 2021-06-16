@@ -592,6 +592,14 @@ for col1 in list(industry_avg):
         mdl_input_data_upd.drop([col1 + '_ind_avg'], axis=1)
 
 
+
+sns.boxplot(data=mdl_input_data_upd, x='gt_10pc_gth', y='surprisePercentage_v_ind_avg', whis=10)
+plt.yscale('log')
+plt.show()
+
+mdl_input_data_upd[['p_to_r_v_ind_avg','gt_10pc_gth']].groupby(by=['gt_10pc_gth']).mean()
+
+
 # Checks
 print(mdl_input_data_upd.loc[mdl_input_data['Symbol'] == 'AAIC', ['totalRevenue', 'totalRevenue_1Q_lag', 'totalRevenue_2Q_lag'
     ,'totalRevenue_4Q_lag','market_cap', 'market_cap_1Q_lag', 'market_cap_2Q_lag'
@@ -756,10 +764,7 @@ null_value_pc(mdl_data_train)
 
 mdl_data_test.info()
 
-# ax = plt.gca()
-# sns.scatterplot(data = mdl_data_train, x= 'paymentsForRepurchaseOfPreferredStock', y='future_price_gth')
-# ax.set_yscale('log')
-# ax.set_xscale('log')
+
 
 ##################################################################################################################
 # Section 4 - Modelling
@@ -797,6 +802,7 @@ print(y_train)
 
 
 
+
 # Feature Scaling
 # Scale the values such that each are in the range [0,1]
 # Scaling is necessary for feature selection and modelling
@@ -813,19 +819,31 @@ X_train = imputer.fit_transform(X_train)
 X_test = imputer.fit_transform(X_test)
 
 # Univariate Feature selection
-select_feature = SelectKBest(chi2, k=100).fit(X_train, y_train)
+
+# X_train_red = X_train[:,:887]
+# X_test_red = X_test[:,:887]
+#
+# X_train[:,:888]
+# X_train_red.shape
+# y_train.shape
+
+# X_train.shape
+
+select_feature = SelectKBest(chi2, k=1035).fit(X_train, y_train)
 select_features_df = pd.DataFrame({'Feature': list(X_train_df.columns),
                                    'Scores' : select_feature.scores_})
-select_features_df.sort_values(by='Scores', ascending=False)
+a = select_features_df.sort_values(by='Scores', ascending=False)
+a.head(50)
+a.loc[a['Feature']=='op_cf_v_ind_avg']
 
 X_train_chi = select_feature.transform(X_train)
 X_test_chi = select_feature.transform(X_test)
 
 
 
-X_train_rv = X_train
+X_train_rv = X_train_chi
 y_train_rv = y_train.ravel()
-X_test_rv = X_test
+X_test_rv = X_test_chi
 y_test_rv = y_test.ravel()
 np.shape(X_train_rv)
 
@@ -847,8 +865,8 @@ plt.show()
 
 
 
-classifier = KNeighborsClassifier(n_neighbors = 5, metric = 'minkowski', p = 2)
-# classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy')
+# classifier = KNeighborsClassifier(n_neighbors = 5, metric = 'minkowski', p = 2)
+classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy')
 classifier.fit(X_train_rv, y_train_rv)
 
 
@@ -920,12 +938,90 @@ offspring_size = 3
 scoring_function = 'precision'
 
 # Create the tpot classifier
-tpot_clf = TPOTClassifier(generations=number_generations, population_size=population_size,
-                          offspring_size=offspring_size, scoring=scoring_function,
-                          verbosity=2, random_state=2, cv=2)
+# tpot_clf = TPOTClassifier(generations=number_generations, population_size=population_size,
+#                           offspring_size=offspring_size, scoring=scoring_function,
+#                           verbosity=2, random_state=2, cv=2)
+#
+# # Fit the classifier to the training data
+# tpot_clf.fit(X_train_rv, y_train_rv)
+#
+# # Score on the test set - 33.6%
+# tpot_clf.score(X_test_rv, y_test_rv)
 
-# Fit the classifier to the training data
-tpot_clf.fit(X_train_rv, y_train_rv)
 
-# Score on the test set - 33.6%
-tpot_clf.score(X_test_rv, y_test_rv)
+# XGBoost
+
+
+# from xgboost import XGBClassifier
+# classifier = XGBClassifier()
+from catboost import CatBoostClassifier
+classifier = CatBoostClassifier()
+classifier.fit(X_train_rv, y_train_rv)
+
+
+# Making the Confusion Matrix
+from sklearn.metrics import confusion_matrix, accuracy_score
+y_pred = classifier.predict(X_test_rv)
+cm = confusion_matrix(y_test_rv, y_pred)
+print(cm)
+accuracy_score(y_test_rv, y_pred)  #
+
+# Applying k-Fold Cross Validation
+# The average accuracy across the K fold cross validations is 96.53% making it the best performing algorithm
+from sklearn.model_selection import cross_val_score
+accuracies = cross_val_score(estimator = classifier, X = X_train_rv, y = y_train_rv, cv = 3)
+print("Accuracy: {:.2f} %".format(accuracies.mean()*100))
+print("Standard Deviation: {:.2f} %".format(accuracies.std()*100))
+
+# Artificial Neural Network
+import tensorflow as tf
+
+# Initializing the ANN
+# Using a sequential neutral network
+ann = tf.keras.models.Sequential()
+
+# Adding the input layer and the first hidden layer
+# The first hidden layer contains 6 nodes from the Dense class and the activation function is the rectifier function
+# Activation = max(x,0) (which is 0 for negative values and then increase linearly until 1)
+ann.add(tf.keras.layers.Dense(units=10, activation='relu'))
+
+# Adding the second hidden layer
+# The second hidden layer contains 6 nodes and the activation function is the rectifier function
+# Activation = max(x,0) (which is 0 for negative values and then increase linearly until 1)
+ann.add(tf.keras.layers.Dense(units=10, activation='relu'))
+ann.add(tf.keras.layers.Dense(units=10, activation='relu'))
+
+# Adding the output layer
+# The output layer contains 1 node and the activation function is the sigmoid function
+# Activation = 1 / (1 + e(-x)) (which is very useful when predicting probabilities)
+# If we wanted three output variables the output layer would require 3 nodes/neurons
+ann.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
+
+# Part 3 - Training the ANN
+
+# Compiling the ANN
+# Optimizer used is Adaptive Moment Estimation (Adam), the training cost in the case of Adam uses stochastic gradient
+# descent.
+# For binary outcomes we always have to use binary_crossentropy and for non-binary is categorical_crossentropy
+# For metrics we can put in 'mse', 'mae', 'mape', 'cosine' (for numeric output node you would also
+# change loss to 'mse'
+ann.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = [tf.keras.metrics.Precision()])
+
+# Training the ANN on the Training set
+# We are doing batch learning, a good rule of thumb is to use 32
+# epochs is the number of times we run over the data, in our case we run over the data 100 times
+history = ann.fit(X_train_rv, y_train_rv, batch_size = 32, epochs = 100)
+
+
+# Plot losses
+# Once we've fit a model, we usually check the training loss curve to make sure it's flattened out.
+# The history returned from model.fit() is a dictionary that has an entry, 'loss', which is the
+# training loss. We want to ensure this has more or less flattened out at the end of our training.
+
+
+# Plot the losses from the fit
+plt.plot(history.history['loss'])
+
+# Use the last loss as the title
+plt.title('Precision:' + str(round(history.history['loss'][-1], 6)))
+plt.show()
