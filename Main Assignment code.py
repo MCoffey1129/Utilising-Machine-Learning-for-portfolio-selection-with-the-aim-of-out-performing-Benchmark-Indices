@@ -555,8 +555,20 @@ margin_calcs('dividendPayoutCommonStock', 'commonStockSharesOutstanding', 'div_y
 # Inventory issues
 margin_calcs('inventory', 'costofGoodsAndServicesSold', 'inv_ratio')
 
-mdl_input_data[['Industry', 'p_to_e', 'p_to_b', 'p_to_r', 'div_yield', 'debt_to_equity'
-                'int_cov_ratio', 'gross_margin', 'ebitda_margin ]].groupby(by=['Industry','dt']).mean()
+industry_avg = mdl_input_data[['Industry', 'p_to_e', 'p_to_b', 'p_to_r', 'div_yield', 'debt_to_equity',
+                                'int_cov_ratio', 'gross_margin', 'ebitda_margin', 'ebit_margin', 'op_cf', 'market_cap',
+                                'totalRevenue_2Q_gth', 'netIncome_2Q_gth', 'reportedEPS', 'surprisePercentage',
+                               'netIncome' , 'ebit',  'ebitda', 'operatingCashflow']]\
+    .groupby(by=['Industry','dt']).mean()
+
+
+industry_avg_rename = industry_avg.rename(columns = lambda s:s + '_ind_avg')
+print(industry_avg_rename)
+
+
+mdl_input_data_upd =
+d.merge(mdl_input_data, financial_results_reorder, how='left', on=['dt', 'Symbol'])
+         , stk_prices, how='left', on=['dt', 'Symbol'])
 
 # Checks
 print(mdl_input_data.loc[mdl_input_data['Symbol'] == 'AAIC', ['totalRevenue', 'totalRevenue_1Q_lag', 'totalRevenue_2Q_lag'
