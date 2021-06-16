@@ -736,6 +736,7 @@ mdl_data_train[['Sector', 'Industry', 'gt_10pc_gth']].groupby(by=['Sector', 'Ind
 
 # Drop the required columns in a new dataframe called "model_input_data"
 mdl_data_train = mdl_data_train.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
+mdl_data_test = mdl_data_test.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
 
 print(pd.DataFrame(mdl_data_train.dtypes, columns=['datatype']).sort_values('datatype'))  # 3 character fields remaining
 
@@ -780,6 +781,8 @@ X_test_df = mdl_data_test.drop(['gt_10pc_gth'], axis=1)
 X_test_df = pd.get_dummies(data=X_test_df, drop_first=True)
 y_test_df = mdl_data_test['gt_10pc_gth']
 
+
+
 ##
 # y_train_df.to_csv(r'Files\y_train_df.csv', index=True, header=True)
 
@@ -817,6 +820,8 @@ select_features_df.sort_values(by='Scores', ascending=False)
 
 X_train_chi = select_feature.transform(X_train)
 X_test_chi = select_feature.transform(X_test)
+
+
 
 X_train_rv = X_train
 y_train_rv = y_train.ravel()
