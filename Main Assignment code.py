@@ -816,6 +816,10 @@ X_test_df = mdl_data_test.drop(['gt_10pc_gth'], axis=1)
 X_test_df = pd.get_dummies(data=X_test_df, drop_first=True)
 y_test_df = mdl_data_test['gt_10pc_gth']
 
+
+X_train_df['Industry'].value_counts()
+
+
 ##
 # y_train_df.to_csv(r'Files\y_train_df.csv', index=True, header=True)
 
@@ -857,21 +861,21 @@ X_test = imputer.fit_transform(X_test)
 
 X_train.shape
 
-select_feature = SelectKBest(chi2, k=1000).fit(X_train, y_train)
-select_features_df = pd.DataFrame({'Feature': list(X_train_df.columns),
-                                   'Scores' : select_feature.scores_})
-a = select_features_df.sort_values(by='Scores', ascending=False)
-a.head(50)
-a.loc[a['Feature']=='Industry_Food Distribution']
+# select_feature = SelectKBest(chi2, k=1000).fit(X_train, y_train)
+# select_features_df = pd.DataFrame({'Feature': list(X_train_df.columns),
+#                                    'Scores' : select_feature.scores_})
+# a = select_features_df.sort_values(by='Scores', ascending=False)
+# a.head(50)
+# a.loc[a['Feature']=='Industry_Food Distribution']
+#
+# X_train = select_feature.transform(X_train)
+# X_test = select_feature.transform(X_test)
+##
 
-X_train_chi = select_feature.transform(X_train)
-X_test_chi = select_feature.transform(X_test)
 
-
-
-X_train_rv = X_train_chi
+X_train_rv = X_train
 y_train_rv = y_train.ravel()
-X_test_rv = X_test_chi
+X_test_rv = X_test
 y_test_rv = y_test.ravel()
 np.shape(X_train_rv)
 
@@ -905,7 +909,7 @@ cm = confusion_matrix(y_test_rv, y_pred)
 print(cm)  # only 1 incorrect prediction
 print(classification_report(y_test, y_pred))
 
-print(y_test_rv)
+
 
 # Random Forest
 # Run a random forest to check what are the most important features in predicting future stock prices
@@ -919,11 +923,12 @@ model_params = {
     'svm' : {'model' : SVC(kernel = 'rbf', random_state = 0),
              'params' : {'C': [0.25, 0.5, 0.75, 1, 5], 'kernel': ['linear']},
                 {'C': [0.25, 0.5, 0.75, 1, 5], 'kernel': ['rbf'],
-                 'gamma': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]}},
+                 'gamma': [0.1, 0.2, 0.4, 0.6, 0.8, 0.9]}},
 
     'random_forest' : { 'model': RandomForestClassifier(criterion='entropy', random_state=0),
-                        'params': {'n_estimators' : [50,100,200,500], 'max_features': ['auto', 'sqrt','log2'],
-                                   'class_weight' : [{0:0.3, 1:0.7},{0:0.2, 1:0.8},{0:0.1, 1:0.9}, {0:0.05, 1:0.95}}},
+                        'params': {'n_estimators' : [50,100,200,500, 1000], 'max_features': ['auto', 'sqrt','log2'],
+                                   'class_weight' : [{0:0.4, 1:0.6},{0:0.45, 1:0.55},{0:0.5, 1:0.5}, {0:0.55, 1:0.45}]
+                                   'min_samples_leaf' : [1,2,4], 'min_samples_split' : [2, 5, 10]}},
 
     'knn' : { 'model' : KNeighborsClassifier(random_state=0),
               'params' : {'n_neighbours':[2,3,5,9,15,25], 'p': [1,2], leaf_size : [1,2,12,25,100,200]}
@@ -933,7 +938,7 @@ model_params = {
 scores = []
 
 for model_name, mp in model_params.items():
-    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='precision', cv=5, return_train_score= False)
+    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='precision', cv=1, return_train_score= False)
     clf.fit(X_train_rv, y_train_rv)
     scores.append({
         'model' : model_name,
@@ -949,7 +954,7 @@ print(scores_df)
 
 
 #################################################################################################################
-# Section 1 - Stacking the models with the best hyperparameters
+# Section 4.1 - Stacking the models with the best hyperparameters
 #################################################################################################################
 
 # define the base models
@@ -997,7 +1002,7 @@ pred = model.predict(X_test)
 
 
 #################################################################################################################
-# Section 2 - Genetic Algorithm
+# Section 4.2 - Genetic Algorithm
 #################################################################################################################
 
 # Genetic Algorithms
@@ -1022,7 +1027,7 @@ from tpot import TPOTClassifier
 
 
 #################################################################################################################
-# Section 3 - Boosted models
+# Section 4.3 - Boosted models
 #################################################################################################################
 
 # XGBoost
@@ -1051,32 +1056,35 @@ print("Standard Deviation: {:.2f} %".format(accuracies.std()*100))
 
 
 #################################################################################################################
-# Section 4 - Neural Networks
+# Section 4.4 - Neural Networks
 #################################################################################################################
 
 # Artificial Neural Network
 import tensorflow as tf
+from keras.layers import Dropout
+from keras.layers import LeakyReLU
+
 
 # Initializing the ANN
 # Using a sequential neutral network
-ann = tf.keras.models.Sequential()
+ann_1 = tf.keras.models.Sequential()
 
 # Adding the input layer and the first hidden layer
 # The first hidden layer contains 6 nodes from the Dense class and the activation function is the rectifier function
 # Activation = max(x,0) (which is 0 for negative values and then increase linearly until 1)
-ann.add(tf.keras.layers.Dense(units=10, activation='relu'))
+ann_1.add(tf.keras.layers.Dense(units=10, activation='relu'))
 
 # Adding the second hidden layer
 # The second hidden layer contains 6 nodes and the activation function is the rectifier function
 # Activation = max(x,0) (which is 0 for negative values and then increase linearly until 1)
-ann.add(tf.keras.layers.Dense(units=10, activation='relu'))
-ann.add(tf.keras.layers.Dense(units=10, activation='relu'))
+ann_1.add(tf.keras.layers.Dense(units=10, activation='relu'))
+ann_1.add(tf.keras.layers.Dense(units=10, activation='relu'))
 
 # Adding the output layer
 # The output layer contains 1 node and the activation function is the sigmoid function
 # Activation = 1 / (1 + e(-x)) (which is very useful when predicting probabilities)
 # If we wanted three output variables the output layer would require 3 nodes/neurons
-ann.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
+ann_1.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
 
 # Part 3 - Training the ANN
 
@@ -1086,12 +1094,31 @@ ann.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
 # For binary outcomes we always have to use binary_crossentropy and for non-binary is categorical_crossentropy
 # For metrics we can put in 'mse', 'mae', 'mape', 'cosine' (for numeric output node you would also
 # change loss to 'mse'
-ann.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = [tf.keras.metrics.Precision()])
+ann_1.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = [tf.keras.metrics.Precision()])
 
 # Training the ANN on the Training set
 # We are doing batch learning, a good rule of thumb is to use 32
 # epochs is the number of times we run over the data, in our case we run over the data 100 times
-history = ann.fit(X_train_rv, y_train_rv, batch_size = 32, epochs = 100)
+history_1 = ann.fit(X_train_rv, y_train_rv, batch_size = 32, epochs = 100)
+
+
+# Fit the second Neural Network
+ann_2 = tf.keras.models.Sequential()
+ann_2.add(tf.keras.layers.Dense(units=100, activation='relu'))
+ann_2.add(Dropout(0.2))
+ann_2.add(tf.keras.layers.Dense(units=50, activation='relu'))
+ann_2.add(tf.keras.layers.Dense(units=10, activation='relu'))
+ann_2.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
+history_2 = ann_2.fit(X_train_rv, y_train_rv, batch_size = 32, epochs = 100)
+
+# Fit the third Neural Network
+ann_3 = tf.keras.models.Sequential()
+ann_3.add(tf.keras.layers.Dense(units=50, activation='tanh'))
+ann_2.add(Dropout(0.2))
+ann_3.add(tf.keras.layers.Dense(units=10, activation='tanh'))
+ann_3.add(tf.keras.layers.Dense(units=10, activation='tanh'))
+ann_3.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
+history_3 = ann_3.fit(X_train_rv, y_train_rv, batch_size = 32, epochs = 100)
 
 
 # Plot losses
@@ -1140,15 +1167,15 @@ chk = pd.concat([mdl_data_test, y_pred_df.set_index(mdl_data_test.index),
 
 
 #################################################################################################################
-# Section 5 - Comparing the models
+# Section 4.4 - Comparing the models
 #################################################################################################################
 
 
 #################################################################################################################
-# Section 6 - Top 30 cases from each model versus using Max Drawdown versus Max Sharpe Ratio
+# Section 5 - Top 30 cases from each model versus using Max Drawdown versus Max Sharpe Ratio
 #################################################################################################################
 
 
 #################################################################################################################
-# Section 7 - Implementation of the model at Jan '21
+# Section 6 - Implementation of the model at Jan '21
 #################################################################################################################
