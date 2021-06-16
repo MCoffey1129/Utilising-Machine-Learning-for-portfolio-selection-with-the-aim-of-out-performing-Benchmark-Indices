@@ -28,9 +28,12 @@ from sklearn.model_selection import cross_val_score
 import statsmodels.api as sm
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import r2_score
 from numpy import inf
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2
+from sklearn.neighbors import KNeighborsClassifier
 
 
 # Functions
@@ -552,6 +555,8 @@ margin_calcs('dividendPayoutCommonStock', 'commonStockSharesOutstanding', 'div_y
 # Inventory issues
 margin_calcs('inventory', 'costofGoodsAndServicesSold', 'inv_ratio')
 
+#mdl_input_data[['Industry', 'p_to_e', 'p_to_b', 'p_to_r', ]].groupby(by=['Sector', 'Industry']).mean()
+
 # Checks
 print(mdl_input_data.loc[mdl_input_data['Symbol'] == 'AAIC', ['totalRevenue', 'totalRevenue_1Q_lag', 'totalRevenue_2Q_lag'
     ,'totalRevenue_4Q_lag','market_cap', 'market_cap_1Q_lag', 'market_cap_2Q_lag'
@@ -704,21 +709,21 @@ print(pd.DataFrame(mdl_data_train.dtypes, columns=['datatype']).sort_values('dat
 # Revenue, gross profit and other values which were null had very few nulls......
 null_value_pc(mdl_data_train)
 
-mdl_data_train.fillna(0, inplace=True)
-mdl_data_test.fillna(0, inplace=True)
-mdl_data_train.isnull().sum()  # no missing values
-mdl_data_test.isnull().sum()  # no missing values
-mdl_data_train.describe()
+# mdl_data_train.fillna(0, inplace=True)
+# mdl_data_test.fillna(0, inplace=True)
+# mdl_data_train.isnull().sum()  # no missing values
+# mdl_data_test.isnull().sum()  # no missing values
+# mdl_data_train.describe()
 
-mdl_data_train['gt_10pc_gth'] = mdl_data_train['gt_10pc_gth'].astype(int)
-mdl_data_test['gt_10pc_gth'] = mdl_data_test['gt_10pc_gth'].astype(int)
+# mdl_data_train['gt_10pc_gth'] = mdl_data_train['gt_10pc_gth'].astype(int)
+# mdl_data_test['gt_10pc_gth'] = mdl_data_test['gt_10pc_gth'].astype(int)
 
 mdl_data_test.info()
 
-ax = plt.gca()
-sns.scatterplot(data = mdl_data_train, x= 'paymentsForRepurchaseOfPreferredStock', y='future_price_gth')
-ax.set_yscale('log')
-ax.set_xscale('log')
+# ax = plt.gca()
+# sns.scatterplot(data = mdl_data_train, x= 'paymentsForRepurchaseOfPreferredStock', y='future_price_gth')
+# ax.set_yscale('log')
+# ax.set_xscale('log')
 
 ##################################################################################################################
 # Section 4 - Modelling
@@ -733,80 +738,128 @@ ax.set_xscale('log')
 # The original random forest model had an R squared of 1.3% where most of the test scores were actually negative
 #
 
-X_train = mdl_data_train.drop(['gt_10pc_gth'], axis=1)
-X_train = pd.get_dummies(data=X_train, drop_first=True)
-y_train = mdl_data_train['gt_10pc_gth']
-X_test = mdl_data_train.drop(['gt_10pc_gth'], axis=1)
-X_test = pd.get_dummies(data=X_test, drop_first=True)
-y_test = mdl_data_train['gt_10pc_gth']
+X_train_df = mdl_data_train.drop(['gt_10pc_gth'], axis=1)
+X_train_df = pd.get_dummies(data=X_train_df, drop_first=True)
+y_train_df = mdl_data_train['gt_10pc_gth']
+X_test_df = mdl_data_train.drop(['gt_10pc_gth'], axis=1)
+X_test_df = pd.get_dummies(data=X_test_df, drop_first=True)
+y_test_df = mdl_data_train['gt_10pc_gth']
 
-print(y_train)
+##
+# y_train_df.to_csv(r'Files\y_train_df.csv', index=True, header=True)
 
-X_train = X_train.values
-y_train = y_train.values
-X_test = X_test.values
-y_test = y_test.values
+X_train = X_train_df.values
+y_train = y_train_df.values
+X_test = X_test_df.values
+y_test = y_test_df.values
 
 y_train = y_train.reshape(len(y_train),1)  # For feature scaling you need a 2D array as this is what the StandardScaler expects
 y_test = y_test.reshape(len(y_test),1)
 print(y_train)
-y_train.shape
+
+
 
 # Feature Scaling
-# See "1.Data" what we are doing below is (x - mu) / sd
-# We have scaled both the dependent and independent variables (xi any yi)
-sc_X_train = StandardScaler()
-sc_X_test = StandardScaler()
-
+# Scale the values such that each are in the range [0,1]
+# Scaling is necessary for feature selection and modelling
+sc_X_train = MinMaxScaler()
+sc_X_test = MinMaxScaler()
 X_train = sc_X_train.fit_transform(X_train)
 X_test = sc_X_test.fit_transform(X_test)
 
 
+# Impute missing values
+from sklearn.impute import KNNImputer
+imputer = KNNImputer(n_neighbors=5, weights = "uniform")
+X_train = imputer.fit_transform(X_train)
+X_test = imputer.fit_transform(X_test)
+
+# Univariate Feature selection
+select_feature = SelectKBest(chi2, k=100).fit(X_train, y_train)
+select_features_df = pd.DataFrame({'Feature': list(X_train_df.columns),
+                                   'Scores' : select_feature.scores_})
+select_features_df.sort_values(by='Scores', ascending=False)
+
+X_train_chi = select_feature.transform(X_train)
+X_test_chi = select_feature.transform(X_test)
+
+X_train_rv = X_train
+y_train_rv = y_train.ravel()
+X_test_rv = X_test
+y_test_rv = y_test.ravel()
+np.shape(X_train_rv)
+
+
+# Recursive feature elimination
+from sklearn.feature_selection import RFECV
+rfecv= RFECV(estimator=RandomForestClassifier(), step=100, cv=5, scoring='precision')
+rfecv= rfecv.fit(X_train_rv, y_train_rv)
+print('Optimal number of features : ' , rfecv.n_features_)
+print('Best features :' , X_train_df.columns[rfecv.support_])
+
+
+plt.figure()
+plt.xlabel("No of features selected")
+plt.ylabel("Cross Validation score")
+plt.plot(range(1,len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
+plt.show()
+
+
+
+
+# classifier = KNeighborsClassifier(n_neighbors = 5, metric = 'minkowski', p = 2)
+classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy')
+classifier.fit(X_train_rv, y_train_rv)
+
+
+from sklearn.metrics import confusion_matrix, accuracy_score , classification_report
+
+y_pred = classifier.predict(X_test_rv)
+cm = confusion_matrix(y_test_rv, y_pred)
+print(cm)  # only 1 incorrect prediction
+print(classification_report(y_test, y_pred))
+
+print(y_test_rv)
 
 # Random Forest
 # Run a random forest to check what are the most important features in predicting future stock prices
-X_train_rf = X_train
-y_train_rf = y_train.ravel()
-X_test_rf = X_test
-y_test_rf = y_test.ravel()
 
-np.shape(X_train_rf)
 
 # Grid Search
 
 rf_class = RandomForestClassifier(criterion='entropy')
-param_grid = {'max_depth': [2, 4, 8, 15], 'max_features': ['auto', 'sqrt','log2'], 'random_state': [21]}
+param_grid = {'n_estimators' : [200], 'max_features': ['auto', 'sqrt','log2']}
 
 # Create a GridSearchCV object
 grid_rf_class = GridSearchCV(
     estimator=rf_class,
     param_grid=param_grid,
-    scoring='roc_auc',
+    scoring='precision',
     n_jobs=-1,
     cv=5,
     refit=True, return_train_score=True)
 
 print(grid_rf_class)
 
-grid_rf_class.fit(X_train_rf, y_train_rf)
+grid_rf_class.fit(X_train_rv, y_train_rv)
 
 
 
 # Read the cv_results property into a dataframe & print it out
 cv_results_df = pd.DataFrame(grid_rf_class.cv_results_)
-cv_results_df
+print(cv_results_df)
 
 # Extract and print the column with a dictionary of hyperparameters used
 column = cv_results_df.loc[:, ["params"]]
-column
+print(column)
 
 # Extract and print the row that had the best mean test score
 best_row = cv_results_df[cv_results_df["rank_test_score"] == 1]
-best_row
+print(best_row)
 
 # Print out the ROC_AUC score from the best-performing square
 best_score = grid_rf_class.best_score_
-best_score
+print(best_score)
 
 # Create a variable from the row related to the best-performing square
 cv_results_df = pd.DataFrame(grid_rf_class.cv_results_)
