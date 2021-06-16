@@ -523,14 +523,14 @@ mdl_input_data['market_cap_4Q_lag'] = mdl_input_data['commonStockSharesOutstandi
 
 
 # Create a simplified EV column (free cashflow equals op cf - capex)
-mdl_input_data['EV_simple'] = mdl_input_data['market_cap'] - mdl_input_data['currentDebt']
-                                + mdl_input_data['operatingCashflow'] - mdl_input_data['capitalExpenditures']
-mdl_input_data['EV_simple_1Q_lag'] = mdl_input_data['commonStockSharesOutstanding_1Q_lag'] \
-                                      * mdl_input_data['close_price_3M_lag']
-mdl_input_data['market_cap_2Q_lag'] = mdl_input_data['commonStockSharesOutstanding_2Q_lag'] \
-                                      * mdl_input_data['close_price_6M_lag']
-mdl_input_data['market_cap_4Q_lag'] = mdl_input_data['commonStockSharesOutstanding_4Q_lag'] \
-                                      * mdl_input_data['close_price_12M_lag']
+mdl_input_data['EV_simple'] = mdl_input_data['market_cap'] - mdl_input_data['currentDebt'] \
+                            + mdl_input_data['operatingCashflow'] - mdl_input_data['capitalExpenditures']
+mdl_input_data['EV_simple_1Q_lag'] = mdl_input_data['market_cap_1Q_lag'] - mdl_input_data['currentDebt_1Q_lag']
+                            + mdl_input_data['operatingCashflow_1Q_lag'] - mdl_input_data['capitalExpenditures_1Q_lag']
+mdl_input_data['EV_simple_2Q_lag'] = mdl_input_data['market_cap_2Q_lag'] - mdl_input_data['currentDebt_2Q_lag']
+                            + mdl_input_data['operatingCashflow_2Q_lag'] - mdl_input_data['capitalExpenditures_2Q_lag']
+mdl_input_data['EV_simple_4Q_lag'] = mdl_input_data['market_cap_4Q_lag'] - mdl_input_data['currentDebt_4Q_lag']
+                            + mdl_input_data['operatingCashflow_4Q_lag'] - mdl_input_data['capitalExpenditures_4Q_lag']
 
 # Create new features required for modelling i.e. P/E, gross margin, net margin etc.
 
@@ -542,6 +542,7 @@ margin_calcs('ebit', 'totalRevenue', 'ebit_margin')
 margin_calcs('netIncome', 'totalRevenue', 'net_margin')
 margin_calcs('netIncome', 'totalAssets', 'ret_on_assets')
 margin_calcs('netIncome', 'totalShareholderEquity', 'ret_on_equity')
+margin_calcs('operatingCashflow', 'totalRevenue' , 'cf_to_rev')
 
 # Liquidity metrics
 margin_calcs('operatingCashflow', 'totalCurrentLiabilities', 'op_cf')
@@ -556,9 +557,15 @@ margin_calcs('ebitda', 'interestAndDebtExpense', 'int_cov_ratio')
 margin_calcs('market_cap', 'netIncome', 'p_to_e')
 margin_calcs('market_cap', 'book_value', 'p_to_b')
 margin_calcs('market_cap', 'totalRevenue', 'p_to_r')
+margin_calcs('market_cap', 'ebitda', 'p_to_ebitda')
+margin_calcs('EV_simple', 'netIncome', 'ev_to_e')
+margin_calcs('EV_simple', 'book_value', 'ev_to_b')
+margin_calcs('EV_simple', 'totalRevenue', 'ev_to_r')
+margin_calcs('EV_simple', 'ebitda', 'ev_to_ebitda')
 margin_calcs('market_cap', 'operatingCashflow', 'p_to_op_cf')
 margin_calcs('market_cap', 'cashflowFromInvestment', 'p_to_inv_cf')
 margin_calcs('market_cap', 'cashflowFromFinancing', 'p_to_fin_cf')
+margin_calcs('EV_simple', 'operatingCashflow', 'ev_to_op_cf')
 
 # Dividends per share
 margin_calcs('dividendPayoutCommonStock', 'commonStockSharesOutstanding', 'div_yield')
@@ -566,10 +573,11 @@ margin_calcs('dividendPayoutCommonStock', 'commonStockSharesOutstanding', 'div_y
 # Inventory issues
 margin_calcs('inventory', 'costofGoodsAndServicesSold', 'inv_ratio')
 
-industry_avg = mdl_input_data[['Industry', 'p_to_e', 'p_to_b', 'p_to_r', 'div_yield', 'debt_to_equity',
+
+industry_avg = mdl_input_data[['Industry', 'p_to_e', 'p_to_b', 'p_to_r', 'ev_to_e', 'ev_to_b', 'ev_to_r',
+                            'div_yield', 'debt_to_equity', 'p_to_op_cf', 'ev_to_op_cf', 'p_to_ebitda', 'ev_to_ebitda',
                                 'int_cov_ratio', 'gross_margin', 'ebitda_margin', 'ebit_margin', 'op_cf', 'market_cap',
-                                'totalRevenue_2Q_gth', 'netIncome_2Q_gth', 'reportedEPS', 'surprisePercentage',
-                               'netIncome' , 'ebit',  'ebitda', 'operatingCashflow']]\
+                                'totalRevenue_2Q_gth', 'netIncome_2Q_gth', 'reportedEPS', 'surprisePercentage']]\
     .groupby(by=['Industry','dt']).mean()
 
 
