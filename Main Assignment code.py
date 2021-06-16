@@ -770,7 +770,7 @@ X_test = sc_X_test.fit_transform(X_test)
 
 # Impute missing values
 from sklearn.impute import KNNImputer
-imputer = KNNImputer(n_neighbors=5, weights = "uniform")
+imputer = KNNImputer(n_neighbors=5, weights = "uniform", n_jobs=-1)
 X_train = imputer.fit_transform(X_train)
 X_test = imputer.fit_transform(X_test)
 
@@ -807,8 +807,8 @@ plt.show()
 
 
 
-# classifier = KNeighborsClassifier(n_neighbors = 5, metric = 'minkowski', p = 2)
-classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy')
+classifier = KNeighborsClassifier(n_neighbors = 5, metric = 'minkowski', p = 2)
+# classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy')
 classifier.fit(X_train_rv, y_train_rv)
 
 
@@ -844,7 +844,6 @@ print(grid_rf_class)
 grid_rf_class.fit(X_train_rv, y_train_rv)
 
 
-
 # Read the cv_results property into a dataframe & print it out
 cv_results_df = pd.DataFrame(grid_rf_class.cv_results_)
 print(cv_results_df)
@@ -861,7 +860,31 @@ print(best_row)
 best_score = grid_rf_class.best_score_
 print(best_score)
 
+y_pred = grid_rf_class.predict(X_test)
+print(classification_report(y_test, y_pred))
+
 # Create a variable from the row related to the best-performing square
 cv_results_df = pd.DataFrame(grid_rf_class.cv_results_)
 best_row = cv_results_df.loc[[grid_rf_class.best_index_]]
 best_row
+
+
+# Genetic Algorithms
+# Assign the values outlined to the inputs
+from tpot import TPOTClassifier
+
+number_generations = 3  # nothing to do with the dataset
+population_size = 4  # Start with 4 algorithms
+offspring_size = 3
+scoring_function = 'precision'
+
+# Create the tpot classifier
+tpot_clf = TPOTClassifier(generations=number_generations, population_size=population_size,
+                          offspring_size=offspring_size, scoring=scoring_function,
+                          verbosity=2, random_state=2, cv=2)
+
+# Fit the classifier to the training data
+tpot_clf.fit(X_train_rv, y_train_rv)
+
+# Score on the test set - 33.6%
+tpot_clf.score(X_test_rv, y_test_rv)
