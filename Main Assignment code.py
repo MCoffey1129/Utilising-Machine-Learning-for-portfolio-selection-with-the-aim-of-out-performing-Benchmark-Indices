@@ -555,7 +555,8 @@ margin_calcs('dividendPayoutCommonStock', 'commonStockSharesOutstanding', 'div_y
 # Inventory issues
 margin_calcs('inventory', 'costofGoodsAndServicesSold', 'inv_ratio')
 
-#mdl_input_data[['Industry', 'p_to_e', 'p_to_b', 'p_to_r', ]].groupby(by=['Sector', 'Industry']).mean()
+mdl_input_data[['Industry', 'p_to_e', 'p_to_b', 'p_to_r', 'div_yield', 'debt_to_equity'
+                'int_cov_ratio', 'gross_margin', 'ebitda_margin ]].groupby(by=['Industry','dt']).mean()
 
 # Checks
 print(mdl_input_data.loc[mdl_input_data['Symbol'] == 'AAIC', ['totalRevenue', 'totalRevenue_1Q_lag', 'totalRevenue_2Q_lag'
@@ -741,9 +742,9 @@ mdl_data_test.info()
 X_train_df = mdl_data_train.drop(['gt_10pc_gth'], axis=1)
 X_train_df = pd.get_dummies(data=X_train_df, drop_first=True)
 y_train_df = mdl_data_train['gt_10pc_gth']
-X_test_df = mdl_data_train.drop(['gt_10pc_gth'], axis=1)
+X_test_df = mdl_data_test.drop(['gt_10pc_gth'], axis=1)
 X_test_df = pd.get_dummies(data=X_test_df, drop_first=True)
-y_test_df = mdl_data_train['gt_10pc_gth']
+y_test_df = mdl_data_test['gt_10pc_gth']
 
 ##
 # y_train_df.to_csv(r'Files\y_train_df.csv', index=True, header=True)
@@ -770,7 +771,7 @@ X_test = sc_X_test.fit_transform(X_test)
 
 # Impute missing values
 from sklearn.impute import KNNImputer
-imputer = KNNImputer(n_neighbors=5, weights = "uniform", n_jobs=-1)
+imputer = KNNImputer(n_neighbors=5, weights = "uniform")
 X_train = imputer.fit_transform(X_train)
 X_test = imputer.fit_transform(X_test)
 
@@ -860,13 +861,14 @@ print(best_row)
 best_score = grid_rf_class.best_score_
 print(best_score)
 
-y_pred = grid_rf_class.predict(X_test)
-print(classification_report(y_test, y_pred))
+# Fit the best model
+clf= RandomForestClassifier(criterion='entropy', max_features ='log2', n_estimators=200)
+clf.fit(X_train_rv, y_train_rv)
 
-# Create a variable from the row related to the best-performing square
-cv_results_df = pd.DataFrame(grid_rf_class.cv_results_)
-best_row = cv_results_df.loc[[grid_rf_class.best_index_]]
-best_row
+y_pred = clf.predict(X_test_rv)
+print(classification_report(y_test_rv, y_pred))
+
+
 
 
 # Genetic Algorithms
