@@ -566,12 +566,15 @@ industry_avg_rename = industry_avg.rename(columns = lambda s:s + '_ind_avg')
 print(industry_avg_rename)
 
 
-mdl_input_data_upd =
-d.merge(mdl_input_data, financial_results_reorder, how='left', on=['dt', 'Symbol'])
-         , stk_prices, how='left', on=['dt', 'Symbol'])
+mdl_input_data_upd = pd.merge(mdl_input_data, industry_avg_rename, how='left', on=['dt', 'Industry'])
+
+for col1 in list(industry_avg):
+        mdl_input_data_upd[col1 + '_v_ind_avg'] = mdl_input_data_upd[col1] - mdl_input_data_upd[col1 + '_ind_avg']
+        mdl_input_data_upd.drop([col1 + '_ind_avg'], axis=1)
+
 
 # Checks
-print(mdl_input_data.loc[mdl_input_data['Symbol'] == 'AAIC', ['totalRevenue', 'totalRevenue_1Q_lag', 'totalRevenue_2Q_lag'
+print(mdl_input_data_upd.loc[mdl_input_data['Symbol'] == 'AAIC', ['totalRevenue', 'totalRevenue_1Q_lag', 'totalRevenue_2Q_lag'
     ,'totalRevenue_4Q_lag','market_cap', 'market_cap_1Q_lag', 'market_cap_2Q_lag'
     ,'market_cap_4Q_lag', 'p_to_r', 'p_to_r_1Q_lag', 'p_to_r_2Q_lag', 'p_to_r_4Q_lag'
     ,'totalRevenue_1Q_gth', 'totalRevenue_2Q_gth', 'totalRevenue_4Q_gth'
@@ -584,7 +587,7 @@ print(mdl_input_data.loc[mdl_input_data['Symbol'] == 'AAIC', ['totalRevenue', 't
     ,'surprise_1Q_gth', 'surprise_2Q_gth', 'surprise_4Q_gth']])
 
 
-ds = mdl_input_data[mdl_input_data.isin([np.inf, -np.inf])].sum()
+ds = mdl_input_data[mdl_input_data_upd.isin([np.inf, -np.inf])].sum()
 print(ds)
 
 
@@ -595,8 +598,8 @@ print(ds)
 
 # Split the data into train and test in order to prevent data leakage. Any decision made around dropping columns
 # or replacing nulls needs to be completed assuming we have no information on the test set
-mdl_data_train = mdl_input_data[mdl_input_data.index < '2019-07']
-mdl_data_test = mdl_input_data[mdl_input_data.index == '2019-07']
+mdl_data_train = mdl_input_data_upd[mdl_input_data_upd.index < '2019-07']
+mdl_data_test = mdl_input_data_upd[mdl_input_data_upd.index == '2019-07']
 
 
 # Drop any rows where fiscalDateEnding is null (we will have no revenue or profit information for these rows)
