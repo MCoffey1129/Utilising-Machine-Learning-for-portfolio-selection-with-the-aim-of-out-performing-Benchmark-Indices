@@ -848,10 +848,10 @@ X_test = sc_X_test.fit_transform(X_test)
 
 
 # Impute missing values
-from sklearn.impute import KNNImputer
-imputer = KNNImputer(n_neighbors=5, weights = "uniform")
-X_train = imputer.fit_transform(X_train)
-X_test = imputer.fit_transform(X_test)
+# from sklearn.impute import KNNImputer
+# imputer = KNNImputer(n_neighbors=5, weights = "uniform")
+# X_train = imputer.fit_transform(X_train)
+# X_test = imputer.fit_transform(X_test)
 
 # Univariate Feature selection
 
@@ -898,7 +898,7 @@ X_test_rv = X_test_rv_df.values
 y_test_rv = y_test_rv_df.values.ravel()
 
 
-X_train_rv
+y_test_rv.shape
 
 # Recursive feature elimination
 # from sklearn.feature_selection import RFECV
@@ -962,7 +962,7 @@ model_params = {
     # 'random_forest' : { 'model': RandomForestClassifier(criterion='entropy', random_state=1),
     #                     'params': {'n_estimators' : [100]}},
 
-    'knn' : { 'model' : KNeighborsClassifier(metric = 'minkowski', p = 2),
+    'knn' : { 'model' : KNeighborsClassifier(algorithm='kd_tree'),
               'params' : {'n_neighbors':[5]}
              }
 }
@@ -972,7 +972,7 @@ scores = []
 all_scores = []
 
 for model_name, mp in model_params.items():
-    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='accuracy', cv=10,
+    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='accuracy', cv=3,
                        return_train_score= True, verbose=2)
     clf.fit(X_train_rv, y_train_rv)
     scores.append({
