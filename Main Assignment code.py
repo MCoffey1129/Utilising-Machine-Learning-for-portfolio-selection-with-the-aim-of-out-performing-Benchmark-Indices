@@ -808,7 +808,7 @@ mdl_data_test.info()
 # The original random forest model had an R squared of 1.3% where most of the test scores were actually negative
 #
 
-X_train_df = mdl_data_train.drop(['gt_10pc_gth','month_Jul'], axis=1)
+X_train_df = mdl_data_train.drop(['gt_10pc_gth','month'], axis=1)
 X_train_df = pd.get_dummies(data=X_train_df, drop_first=True)
 y_train_df = mdl_data_train['gt_10pc_gth']
 X_test_df = mdl_data_test.drop(['gt_10pc_gth'], axis=1)
@@ -855,14 +855,6 @@ X_test = imputer.fit_transform(X_test)
 
 # Univariate Feature selection
 
-# X_train_red = X_train[:,:887]
-# X_test_red = X_test[:,:887]
-#
-# X_train[:,:888]
-# X_train_red.shape
-# y_train.shape
-
-X_train.shape
 
 # select_feature = SelectKBest(chi2, k=1000).fit(X_train, y_train)
 # select_features_df = pd.DataFrame({'Feature': list(X_train_df.columns),
@@ -1067,6 +1059,7 @@ import tensorflow as tf
 from keras.layers import Dropout
 from keras.layers import LeakyReLU
 
+tf.random.set_seed(2)
 
 # Initializing the ANN
 # Using a sequential neutral network
@@ -1102,7 +1095,7 @@ ann_1.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = [tf.ke
 # Training the ANN on the Training set
 # We are doing batch learning, a good rule of thumb is to use 32
 # epochs is the number of times we run over the data, in our case we run over the data 100 times
-history_1 = ann.fit(X_train_rv, y_train_rv, batch_size = 32, epochs = 100)
+history_1 = ann_1.fit(X_train_rv, y_train_rv, batch_size = 32, epochs = 100)
 
 
 # Fit the second Neural Network
@@ -1112,15 +1105,17 @@ ann_2.add(Dropout(0.2))
 ann_2.add(tf.keras.layers.Dense(units=50, activation='relu'))
 ann_2.add(tf.keras.layers.Dense(units=10, activation='relu'))
 ann_2.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
+ann_2.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = [tf.keras.metrics.Precision()])
 history_2 = ann_2.fit(X_train_rv, y_train_rv, batch_size = 32, epochs = 100)
 
 # Fit the third Neural Network
 ann_3 = tf.keras.models.Sequential()
-ann_3.add(tf.keras.layers.Dense(units=50, activation='tanh'))
-ann_2.add(Dropout(0.2))
-ann_3.add(tf.keras.layers.Dense(units=10, activation='tanh'))
-ann_3.add(tf.keras.layers.Dense(units=10, activation='tanh'))
+ann_3.add(tf.keras.layers.Dense(units=50, activation=tf.keras.activations.tanh))
+ann_2.add(Dropout(0.1))
+ann_3.add(tf.keras.layers.Dense(units=25, activation=tf.keras.activations.tanh))
+ann_3.add(tf.keras.layers.Dense(units=10, activation=tf.keras.activations.tanh))
 ann_3.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
+ann_3.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = [tf.keras.metrics.Precision()])
 history_3 = ann_3.fit(X_train_rv, y_train_rv, batch_size = 32, epochs = 100)
 
 
@@ -1131,12 +1126,17 @@ history_3 = ann_3.fit(X_train_rv, y_train_rv, batch_size = 32, epochs = 100)
 
 
 # Plot the losses from the fit
-plt.plot(history.history['precision'])
-plt.plot(history.history['loss'])
-
-# Use the last loss as the title
+plt.plot(history_1.history['precision'], label='NN_1')
+plt.plot(history_2.history['precision'], label='NN_2')
+plt.plot(history_3.history['precision'], label='NN_3')
 plt.title('Precision v Loss')
+plt.legend()
 plt.show()
+
+
+
+
+
 
 y_pred = ann.predict(X_test_rv)
 y_pred = (y_pred > 0.5)
@@ -1169,6 +1169,22 @@ chk = pd.concat([mdl_data_test, y_pred_df.set_index(mdl_data_test.index),
 # print(chk)
 
 
+# Make predictions from the 3 neural net models
+train_pred1 = model_1.predict(scaled_train_features)
+test_pred1 = model_1.predict(scaled_test_features)
+
+train_pred2 = model_2.predict(scaled_train_features)
+test_pred2 = model_2.predict(scaled_test_features)
+
+train_pred3 = model_3.predict(scaled_train_features)
+test_pred3 = model_3.predict(scaled_test_features)
+
+# Horizontally stack predictions and take the average across rows
+train_preds = np.mean(np.hstack((train_pred1, train_pred2, train_pred3)), axis=1)
+test_preds = np.mean(np.hstack((test_pred1, test_pred2, test_pred3)), axis=1)
+print(test_preds[-5:])
+
+
 #################################################################################################################
 # Section 4.4 - Comparing the models
 #################################################################################################################
@@ -1177,6 +1193,42 @@ chk = pd.concat([mdl_data_test, y_pred_df.set_index(mdl_data_test.index),
 #################################################################################################################
 # Section 5 - Top 30 cases from each model versus using Max Drawdown versus Max Sharpe Ratio
 #################################################################################################################
+
+from pypfopt import risk_models
+from pypfopt import expected_returns
+from pypfopt.efficient_frontier import EfficientFrontier
+
+# Calculate expected returns mu from the set of stock prices dataset
+mu = expected_returns.mean_historical_return(stock_prices)
+
+# Calculate the covariance matrix S
+Sigma = risk_models.sample_cov(stock_prices)
+
+# Obtain the efficient frontier
+ef = EfficientFrontier(mu, Sigma)
+print (mu, Sigma)
+
+# Calculate weights for the maximum Sharpe ratio portfolio
+raw_weights_maxsharpe = ef.max_sharpe()
+cleaned_weights_maxsharpe = ef.clean_weights()
+print (raw_weights_maxsharpe, cleaned_weights_maxsharpe)
+
+# Historical drawdown
+# Calculate the running maximum
+running_max = np.maximum.accumulate(cum_rets)
+
+# Ensure the value never drops below 1
+running_max[running_max < 1] = 1
+
+# Calculate the percentage drawdown
+drawdown = (cum_rets)/running_max  - 1
+
+# Plot the results
+drawdown.plot()
+plt.show()
+
+
+
 
 
 #################################################################################################################
