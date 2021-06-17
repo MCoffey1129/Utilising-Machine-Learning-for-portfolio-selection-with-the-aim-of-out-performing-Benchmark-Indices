@@ -477,10 +477,10 @@ stk_prices.head(20)
 # is statistically significant
 
 # function(table,close_price to be lower than, future price to be lower than)
-seaborn_lm_plt(stk_prices, 10, 50)  # cases which have a price of less than $10 and a future price less than $50
-seaborn_lm_plt(stk_prices, 100, 500)
-seaborn_lm_plt(stk_prices, 5, 20)
-seaborn_lm_plt(stk_prices, 5, 1000000)  # Outlier is Gamestop share increase from July '20 to Jan '21
+# seaborn_lm_plt(stk_prices, 10, 50)  # cases which have a price of less than $10 and a future price less than $50
+# seaborn_lm_plt(stk_prices, 100, 500)
+# seaborn_lm_plt(stk_prices, 5, 20)
+# seaborn_lm_plt(stk_prices, 5, 1000000)  # Outlier is Gamestop share increase from July '20 to Jan '21
 
 
 # Code for checking the stocks with the largest 6 month gains on companies who had a share price of less than 5 euro
@@ -606,9 +606,9 @@ for col1 in list(industry_avg):
 
 'surprisePercentage_v_ind_avg'
 
-sns.boxplot(data=mdl_input_data_upd, x='gt_10pc_gth', y='surprisePercentage_v_ind_avg', whis=10)
-plt.yscale('log')
-plt.show()
+# sns.boxplot(data=mdl_input_data_upd, x='gt_10pc_gth', y='surprisePercentage_v_ind_avg', whis=10)
+# plt.yscale('log')
+# plt.show()
 
 mdl_input_data_upd[['p_to_r_v_ind_avg','gt_10pc_gth']].groupby(by=['gt_10pc_gth']).mean()
 
@@ -917,7 +917,7 @@ y_test_rv.shape
 
 
 
- classifier = KNeighborsClassifier(n_neighbors = 5, metric = 'minkowski', p = 2)
+classifier = KNeighborsClassifier(n_neighbors = 5, metric = 'minkowski', p = 2)
 # classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy', random_state=1)
 # classifier = LogisticRegression(C=1, max_iter=1000, random_state=2)
 
@@ -956,11 +956,11 @@ model_params = {
 }
 
 model_params = {
-    # 'logistic_regression' : {'model' : LogisticRegression( max_iter=1000, random_state = 1),
-    #          'params' : {'C': [0.25]}},
-    #
-    # 'random_forest' : { 'model': RandomForestClassifier(criterion='entropy', random_state=1),
-    #                     'params': {'n_estimators' : [100]}},
+    'logistic_regression' : {'model' : LogisticRegression( max_iter=1000, random_state = 1),
+             'params' : {'C': [0.25]}},
+
+    'random_forest' : { 'model': RandomForestClassifier(criterion='entropy', random_state=1),
+                        'params': {'n_estimators' : [100]}},
 
     'knn' : { 'model' : KNeighborsClassifier(algorithm='kd_tree'),
               'params' : {'n_neighbors':[5]}
@@ -972,7 +972,7 @@ scores = []
 all_scores = []
 
 for model_name, mp in model_params.items():
-    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='accuracy', cv=3,
+    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='accuracy', cv=10,
                        return_train_score= True, verbose=2)
     clf.fit(X_train_rv, y_train_rv)
     scores.append({
