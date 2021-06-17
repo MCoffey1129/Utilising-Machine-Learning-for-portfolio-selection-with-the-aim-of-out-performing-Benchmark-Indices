@@ -34,7 +34,7 @@ from numpy import inf
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import chi2
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
 
 
 # Functions
@@ -873,6 +873,20 @@ y_train_rv = y_train.ravel()
 X_test_rv = X_test
 y_test_rv = y_test.ravel()
 np.shape(X_train_rv)
+np.shape(X_test_rv)
+np.shape(y_train_rv)
+np.shape(y_test_rv)
+
+# X_train_rv_df = pd.DataFrame(X_train_rv)
+# y_train_rv_df = pd.DataFrame(y_train_rv)
+# X_test_rv_df = pd.DataFrame(X_test_rv)
+# y_test_rv_df = pd.DataFrame(y_test_rv)
+#
+# X_train_rv_df.to_csv(r'Files\X_train_rv_df.csv', index=False, header=True)
+# y_train_rv_df.to_csv(r'Files\y_train_rv_df.csv', index=False, header=True)
+# X_test_rv_df.to_csv(r'Files\X_test_rv_df.csv', index=False, header=True)
+# y_test_rv_df.to_csv(r'Files\y_test_rv_df.csv', index=False, header=True)
+
 
 
 # Recursive feature elimination
@@ -893,7 +907,9 @@ np.shape(X_train_rv)
 
 
 # classifier = KNeighborsClassifier(n_neighbors = 5, metric = 'minkowski', p = 2)
-classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy')
+# classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy', random_state=2)
+classifier = LogisticRegression(C=1, max_iter=1000, random_state=2)
+
 classifier.fit(X_train_rv, y_train_rv)
 
 
@@ -902,9 +918,11 @@ from sklearn.metrics import confusion_matrix, accuracy_score , classification_re
 y_pred = classifier.predict(X_test_rv)
 cm = confusion_matrix(y_test_rv, y_pred)
 print(cm)  # only 1 incorrect prediction
-print(classification_report(y_test, y_pred))
+print(classification_report(y_test_rv, y_pred))
 
 
+from sklearn.metrics import precision_score
+precision_score(y_test_rv, y_pred, average='macro')
 
 # Random Forest
 # Run a random forest to check what are the most important features in predicting future stock prices
@@ -915,30 +933,36 @@ print(classification_report(y_test, y_pred))
 #################################################################################################################
 
 model_params = {
-    'svm' : {'model' : SVC(kernel = 'rbf', random_state = 0),
-             'params' : {'C': [0.25, 0.5, 0.75, 1, 5], 'kernel': ['linear']},
-                {'C': [0.25, 0.5, 0.75, 1, 5], 'kernel': ['rbf'],
-                 'gamma': [0.1, 0.2, 0.4, 0.6, 0.8, 0.9]}},
+    'logistic_regression' : {'model' : LogisticRegression( max_iter=1000, random_state = 0),
+             'params' : {'C': [0.25, 0.5, 0.75, 1, 5]}},
 
     'random_forest' : { 'model': RandomForestClassifier(criterion='entropy', random_state=0),
                         'params': {'n_estimators' : [50,100,200,500, 1000], 'max_features': ['auto', 'sqrt','log2'],
-                                   'class_weight' : [{0:0.4, 1:0.6},{0:0.45, 1:0.55},{0:0.5, 1:0.5}, {0:0.55, 1:0.45}]
+                                   'class_weight' : [{0:0.4, 1:0.6},{0:0.45, 1:0.55},{0:0.5, 1:0.5}, {0:0.55, 1:0.45}],
                                    'min_samples_leaf' : [1,2,4], 'min_samples_split' : [2, 5, 10]}},
 
-    'knn' : { 'model' : KNeighborsClassifier(random_state=0),
-              'params' : {'n_neighbours':[2,3,5,9,15,25], 'p': [1,2], leaf_size : [1,2,12,25,100,200]}
+    'knn' : { 'model' : KNeighborsClassifier(),
+              'params' : {'n_neighbours':[2,3,5,10,15,25], 'p': [1,2], 'leaf_size' : [1,2,10,25,100,200]}
              }
 }
+print(model_params)
 
 scores = []
+all_scores = []
 
 for model_name, mp in model_params.items():
-    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='precision', cv=1, return_train_score= False)
+    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='precision', cv=3, return_train_score= False)
     clf.fit(X_train_rv, y_train_rv)
     scores.append({
         'model' : model_name,
         'best_score' : clf.best_score_,
         'best_params' : clf.best_params_
+    })
+    all_scores.append({
+        'model': model_name,
+        'best_score': clf.cv_results_['mean_test_score'],
+        'std_test_score' : clf.cv_results_['std_test_score'],
+        'best_params': clf.cv_results_['params']
     })
 
 
