@@ -105,19 +105,20 @@ def margin_calcs(input_num, input_den, output_col):
     for j in [0, 1, 2, 4]:
         if j == 0:
             mdl_input_data[output_col] = mdl_input_data[input_num] / mdl_input_data[input_den]
-            mdl_input_data[output_col].replace([np.inf,-np.inf],0, inplace=True)
+            mdl_input_data[output_col].replace([np.inf, -np.inf], 0, inplace=True)
 
         else:
             mdl_input_data[output_col + '_' + str(j) + 'Q_lag'] = mdl_input_data[input_num + '_' + str(j) + 'Q_lag'] \
                                                                   / mdl_input_data[input_den + '_' + str(j) + 'Q_lag']
 
             mdl_input_data[output_col + '_' + str(j) + 'Q_gth'] = (mdl_input_data[output_col]
-                                                                       - mdl_input_data[
-                                                                           output_col + '_' + str(j) + 'Q_lag'])
+                                                                   - mdl_input_data[
+                                                                       output_col + '_' + str(j) + 'Q_lag'])
 
             mdl_input_data[output_col + '_' + str(j) + 'Q_lag'].replace([np.inf, -np.inf], 0, inplace=True)
 
             mdl_input_data[output_col + '_' + str(j) + 'Q_gth'].replace([np.inf, -np.inf], 0, inplace=True)
+
 
 #    plt.title("Close Price (< $" + str(close_val) + ")" + " v Future Price (< $" + str(future_value) + ")"
 #        , fontdict={'size': 16})
@@ -224,7 +225,6 @@ financial_results = \
 
 financial_results.head(40)
 
-
 # Initially checked the data for duplicate columns (these are flagged as _x and _y after which I re-run the
 # join removing these columns to avoid the duplication.
 
@@ -236,7 +236,6 @@ financial_results.shape  # 94 columns ( 7 + 25 (27-2 columns joining on) + 36 (3
 # 78,126 rows
 
 
-
 columns_df = pd.DataFrame(financial_results.columns, columns=['Columns'])
 columns_df = columns_df.sort_values(by='Columns')
 print(columns_df)  # There are no longer any duplicate columns
@@ -245,7 +244,6 @@ print(columns_df)  # There are no longer any duplicate columns
 financial_results.info()  # Every field is saved as a character field
 financial_results.describe()  # No numeric fields so the output is not useful
 financial_results.isnull().sum()  # There are a large number of nulls
-
 
 # Replace 'None' with NaN in order to convert the character fields to Numeric,
 # we will have to take another look at reportedCurrency later but for now we will convert it
@@ -271,16 +269,11 @@ financial_results_reorder.shape  # No change in the number of rows (78,126) and 
 financial_results_reorder['book_value'] = financial_results_reorder['totalAssets'] \
                                           - financial_results_reorder['totalLiabilities']
 
-
-
 # Convert the Date fields to dates
 financial_results_reorder['fiscalDateEnding'] = pd.to_datetime(financial_results_reorder['fiscalDateEnding']) \
     .dt.to_period('M')
 
 financial_results_reorder['reportedDate'] = pd.to_datetime(financial_results_reorder['reportedDate']).dt.to_period('M')
-
-
-
 
 # We need to mould the data we will be looking to take in the most recent Financial information for July and Jan
 # each year. The most recent data at Jan will be the quarterly results published in Jan of the current year
@@ -320,8 +313,6 @@ financial_results_reorder.loc[((financial_results_reorder['reportedDate'].dt.mon
 financial_results_reorder['dt_yr'].fillna(financial_results_reorder['reportedDate'].dt.year, inplace=True)
 financial_results_reorder['dt_month'].fillna(financial_results_reorder['reportedDate'].dt.month, inplace=True)
 
-
-
 # Combine the year and month column which will be converted to an updated report date field
 financial_results_reorder['dt_str'] = financial_results_reorder['dt_yr'].astype(int).map(str) + "-" + \
                                       financial_results_reorder['dt_month'].astype(int).map(str)
@@ -342,7 +333,6 @@ financial_results_reorder.head(5)
 financial_results_reorder.shape  # the 4 columns have been dropped (94) and no change to the number of rows (78,126)
 financial_results_reorder.columns
 
-
 # Get the lagged data for each of the numeric columns
 # When looking at the 6 month forecasted growth/decline of a share price we do not want to look at just the
 # revenue in the current quarter but rather the revenue growth across the year for that share
@@ -357,7 +347,7 @@ for i in columns:
         # from 6 months previous
         financial_results_reorder[i + '_' + str(j) + 'Q_lag'] = financial_results_reorder[i].shift(-j)
         financial_results_reorder[i + '_' + str(j) + 'Q_gth'] = (financial_results_reorder[i] -
-                                                                     financial_results_reorder[i].shift(-j)) / \
+                                                                 financial_results_reorder[i].shift(-j)) / \
                                                                 abs(financial_results_reorder[i].shift(-j))
 
         financial_results_reorder[i + '_' + str(j) + 'Q_gth'].replace([np.inf, -np.inf], 0, inplace=True)
@@ -368,11 +358,10 @@ for i in columns:
         financial_results_reorder.loc[financial_results_reorder['Symbol'].shift(-j) !=
                                       financial_results_reorder['Symbol'], i + '_' + str(j) + 'Q_gth'] = np.nan
 
-
 print(financial_results_reorder.loc[(financial_results_reorder['Symbol'] == 'AAIC') |
                                     (financial_results_reorder['Symbol'] == 'A'), [
-    'Symbol' , 'surprise', 'surprise_1Q_lag', 'surprise_2Q_lag', 'surprise_4Q_lag'
-    ,'surprise_1Q_gth', 'surprise_2Q_gth', 'surprise_4Q_gth']])
+                                        'Symbol', 'surprise', 'surprise_1Q_lag', 'surprise_2Q_lag', 'surprise_4Q_lag'
+                                        , 'surprise_1Q_gth', 'surprise_2Q_gth', 'surprise_4Q_gth']])
 
 financial_results_reorder.head(30)
 print(financial_results_reorder.loc[financial_results_reorder['Symbol'] == 'ZNTL'])  # Calculation looks correct
@@ -451,7 +440,6 @@ stk_prices.loc[stk_prices['future_price_gth'] >= 0.1, 'gt_10pc_gth'] = 1
 stk_prices.loc[stk_prices['future_price_gth'] < 0.1, 'gt_10pc_gth'] = 0
 stk_prices.tail(100)
 
-
 # Make dt_m the index
 stk_prices.drop("dt", inplace=True, axis=1)
 stk_prices.index = stk_prices['dt_m'].rename("dt")
@@ -510,8 +498,6 @@ financial_results_reorder.shape  # 31,399 rows and 454 columns
 stk_prices.shape  # 38,078 rows and 13 columns
 mdl_data.shape  # 40,656 rows and 473 columns (454 + 8 + 13 - 2 (Symbol which we are joining on))
 
-
-
 mdl_input_data = mdl_data
 
 # Create a market cap column
@@ -523,26 +509,24 @@ mdl_input_data['market_cap_2Q_lag'] = mdl_input_data['commonStockSharesOutstandi
 mdl_input_data['market_cap_4Q_lag'] = mdl_input_data['commonStockSharesOutstanding_4Q_lag'] \
                                       * mdl_input_data['close_price_12M_lag']
 
-
 # Create a simplified EV column (free cashflow equals op cf - capex)
 mdl_input_data['EV_simple'] = mdl_input_data['market_cap'].fillna(0) - mdl_input_data['currentDebt'].fillna(0) \
-                            + mdl_input_data['operatingCashflow'].fillna(0)\
+                              + mdl_input_data['operatingCashflow'].fillna(0) \
                               - mdl_input_data['capitalExpenditures'].fillna(0)
-mdl_input_data['EV_simple_1Q_lag'] = mdl_input_data['market_cap_1Q_lag'].fillna(0)\
+mdl_input_data['EV_simple_1Q_lag'] = mdl_input_data['market_cap_1Q_lag'].fillna(0) \
                                      - mdl_input_data['currentDebt_1Q_lag'].fillna(0) \
-                            + mdl_input_data['operatingCashflow_1Q_lag'].fillna(0)\
+                                     + mdl_input_data['operatingCashflow_1Q_lag'].fillna(0) \
                                      - mdl_input_data['capitalExpenditures_1Q_lag'].fillna(0)
-mdl_input_data['EV_simple_2Q_lag'] = mdl_input_data['market_cap_2Q_lag'].fillna(0)\
+mdl_input_data['EV_simple_2Q_lag'] = mdl_input_data['market_cap_2Q_lag'].fillna(0) \
                                      - mdl_input_data['currentDebt_2Q_lag'].fillna(0) \
-                            + mdl_input_data['operatingCashflow_2Q_lag'].fillna(0)\
+                                     + mdl_input_data['operatingCashflow_2Q_lag'].fillna(0) \
                                      - mdl_input_data['capitalExpenditures_2Q_lag'].fillna(0)
-mdl_input_data['EV_simple_4Q_lag'] = mdl_input_data['market_cap_4Q_lag'].fillna(0)\
+mdl_input_data['EV_simple_4Q_lag'] = mdl_input_data['market_cap_4Q_lag'].fillna(0) \
                                      - mdl_input_data['currentDebt_4Q_lag'].fillna(0) \
-                            + mdl_input_data['operatingCashflow_4Q_lag'].fillna(0)\
+                                     + mdl_input_data['operatingCashflow_4Q_lag'].fillna(0) \
                                      - mdl_input_data['capitalExpenditures_4Q_lag'].fillna(0)
 
-
-mdl_input_data.loc[mdl_input_data['Symbol'] =='APLT', 'EV_simple']
+mdl_input_data.loc[mdl_input_data['Symbol'] == 'APLT', 'EV_simple']
 # Create new features required for modelling i.e. P/E, gross margin, net margin etc.
 
 # Profitability metrics
@@ -553,7 +537,7 @@ margin_calcs('ebit', 'totalRevenue', 'ebit_margin')
 margin_calcs('netIncome', 'totalRevenue', 'net_margin')
 margin_calcs('netIncome', 'totalAssets', 'ret_on_assets')
 margin_calcs('netIncome', 'totalShareholderEquity', 'ret_on_equity')
-margin_calcs('operatingCashflow', 'totalRevenue' , 'cf_to_rev')
+margin_calcs('operatingCashflow', 'totalRevenue', 'cf_to_rev')
 
 # Liquidity metrics
 margin_calcs('operatingCashflow', 'totalCurrentLiabilities', 'op_cf')
@@ -584,25 +568,21 @@ margin_calcs('dividendPayoutCommonStock', 'commonStockSharesOutstanding', 'div_y
 # Inventory issues
 margin_calcs('inventory', 'costofGoodsAndServicesSold', 'inv_ratio')
 
-
 industry_avg = mdl_input_data[['Industry', 'p_to_e', 'p_to_b', 'p_to_r', 'ev_to_e', 'ev_to_b', 'ev_to_r',
-                            'div_yield', 'debt_to_equity', 'p_to_op_cf', 'ev_to_op_cf', 'p_to_ebitda', 'ev_to_ebitda',
-                                'int_cov_ratio', 'gross_margin', 'ebitda_margin', 'ebit_margin', 'op_cf', 'market_cap',
-                                'totalRevenue_2Q_gth', 'netIncome_2Q_gth', 'reportedEPS', 'surprisePercentage']]\
-    .groupby(by=['Industry','dt']).mean()
+                               'div_yield', 'debt_to_equity', 'p_to_op_cf', 'ev_to_op_cf', 'p_to_ebitda',
+                               'ev_to_ebitda',
+                               'int_cov_ratio', 'gross_margin', 'ebitda_margin', 'ebit_margin', 'op_cf', 'market_cap',
+                               'totalRevenue_2Q_gth', 'netIncome_2Q_gth', 'reportedEPS', 'surprisePercentage']] \
+    .groupby(by=['Industry', 'dt']).mean()
 
-
-industry_avg_rename = industry_avg.rename(columns = lambda s:s + '_ind_avg')
+industry_avg_rename = industry_avg.rename(columns=lambda s: s + '_ind_avg')
 print(industry_avg_rename)
-
 
 mdl_input_data_upd = pd.merge(mdl_input_data, industry_avg_rename, how='left', on=['dt', 'Industry'])
 
 for col1 in list(industry_avg):
-        mdl_input_data_upd[col1 + '_v_ind_avg'] = mdl_input_data_upd[col1] - mdl_input_data_upd[col1 + '_ind_avg']
-        mdl_input_data_upd.drop([col1 + '_ind_avg'], axis=1, inplace=True)
-
-
+    mdl_input_data_upd[col1 + '_v_ind_avg'] = mdl_input_data_upd[col1] - mdl_input_data_upd[col1 + '_ind_avg']
+    mdl_input_data_upd.drop([col1 + '_ind_avg'], axis=1, inplace=True)
 
 'surprisePercentage_v_ind_avg'
 
@@ -610,26 +590,24 @@ for col1 in list(industry_avg):
 # plt.yscale('log')
 # plt.show()
 
-mdl_input_data_upd[['p_to_r_v_ind_avg','gt_10pc_gth']].groupby(by=['gt_10pc_gth']).mean()
-
+mdl_input_data_upd[['p_to_r_v_ind_avg', 'gt_10pc_gth']].groupby(by=['gt_10pc_gth']).mean()
 
 # Checks
-print(mdl_input_data_upd.loc[mdl_input_data['Symbol'] == 'AAIC', ['totalRevenue', 'totalRevenue_1Q_lag', 'totalRevenue_2Q_lag'
-    ,'totalRevenue_4Q_lag','market_cap', 'market_cap_1Q_lag', 'market_cap_2Q_lag'
-    ,'market_cap_4Q_lag', 'p_to_r', 'p_to_r_1Q_lag', 'p_to_r_2Q_lag', 'p_to_r_4Q_lag'
-    ,'totalRevenue_1Q_gth', 'totalRevenue_2Q_gth', 'totalRevenue_4Q_gth'
-    ,'p_to_r_1Q_gth', 'p_to_r_2Q_gth', 'p_to_r_4Q_gth'
-    ,'netIncome', 'netIncome_1Q_lag', 'netIncome_2Q_lag', 'netIncome_4Q_lag'
-    ,'netIncome_1Q_gth', 'netIncome_2Q_gth', 'netIncome_4Q_gth'
-    , 'p_to_e', 'p_to_e_1Q_lag' , 'p_to_e_2Q_lag' , 'p_to_e_4Q_lag'
-    ,'p_to_e_1Q_gth', 'p_to_e_2Q_gth', 'p_to_e_4Q_gth'
-    ,'surprise', 'surprise_1Q_lag', 'surprise_2Q_lag', 'surprise_4Q_lag'
-    ,'surprise_1Q_gth', 'surprise_2Q_gth', 'surprise_4Q_gth']])
-
+print(mdl_input_data_upd.loc[
+          mdl_input_data['Symbol'] == 'AAIC', ['totalRevenue', 'totalRevenue_1Q_lag', 'totalRevenue_2Q_lag'
+              , 'totalRevenue_4Q_lag', 'market_cap', 'market_cap_1Q_lag', 'market_cap_2Q_lag'
+              , 'market_cap_4Q_lag', 'p_to_r', 'p_to_r_1Q_lag', 'p_to_r_2Q_lag', 'p_to_r_4Q_lag'
+              , 'totalRevenue_1Q_gth', 'totalRevenue_2Q_gth', 'totalRevenue_4Q_gth'
+              , 'p_to_r_1Q_gth', 'p_to_r_2Q_gth', 'p_to_r_4Q_gth'
+              , 'netIncome', 'netIncome_1Q_lag', 'netIncome_2Q_lag', 'netIncome_4Q_lag'
+              , 'netIncome_1Q_gth', 'netIncome_2Q_gth', 'netIncome_4Q_gth'
+              , 'p_to_e', 'p_to_e_1Q_lag', 'p_to_e_2Q_lag', 'p_to_e_4Q_lag'
+              , 'p_to_e_1Q_gth', 'p_to_e_2Q_gth', 'p_to_e_4Q_gth'
+              , 'surprise', 'surprise_1Q_lag', 'surprise_2Q_lag', 'surprise_4Q_lag'
+              , 'surprise_1Q_gth', 'surprise_2Q_gth', 'surprise_4Q_gth']])
 
 ds = mdl_input_data[mdl_input_data_upd.isin([np.inf, -np.inf])].sum()
 print(ds)
-
 
 ##################################################################################################################
 # Section 3.2 - Replacing nulls and Feature Selection
@@ -641,7 +619,6 @@ print(ds)
 mdl_data_test = mdl_input_data_upd[mdl_input_data_upd.index == '2020-07']
 mdl_data_train = mdl_input_data_upd[mdl_input_data_upd.index < '2020-07']
 mdl_deploy = mdl_input_data_upd[mdl_input_data_upd.index == '2021-01']
-
 
 # Drop any rows where fiscalDateEnding is null (we will have no revenue or profit information for these rows)
 null_value_pc(mdl_data_train)
@@ -658,7 +635,6 @@ null_value_pc(mdl_data_train)
 mdl_data_train = mdl_data_train.dropna(how='all', subset=['grossProfit'])
 mdl_data_test = mdl_data_test.dropna(how='all', subset=['grossProfit'])
 
-
 # Drop any rows which do not contain the target variable. Drop these cases from both test and Live
 mdl_data_train = mdl_data_train.dropna(how='all', subset=['gt_10pc_gth'])
 mdl_data_test = mdl_data_test.dropna(how='all', subset=['gt_10pc_gth'])
@@ -666,14 +642,13 @@ mdl_data_test = mdl_data_test.dropna(how='all', subset=['gt_10pc_gth'])
 mdl_data_train = mdl_data_train.drop('reportedCurrency', axis=1)
 mdl_data_test = mdl_data_test.drop('reportedCurrency', axis=1)
 
-
 # Remaining null values
 null_df = null_value_pc(mdl_data_train)  # there are a large number of Null values to deal with in all but 6 columns
 null_df = null_df.sort_values(by='missing_pc')
 print(null_df)
 
 # Numeric fields
-mdl_train_numeric = mdl_data_train.iloc[:,10:]
+mdl_train_numeric = mdl_data_train.iloc[:, 10:]
 mdl_train_numeric.drop(columns='month', inplace=True)
 mdl_train_numeric.head()
 
@@ -688,23 +663,22 @@ print(col_list)
 corr_list = []
 
 for col in col_list:
-    corr = pd.DataFrame(mdl_train_numeric[[col,'future_price_gth']].corr())
-    corr = corr.iloc[0,1]
+    corr = pd.DataFrame(mdl_train_numeric[[col, 'future_price_gth']].corr())
+    corr = corr.iloc[0, 1]
     corr_list.append(corr)
 
 print(len(col_list))
 print(corr_list)
 print(len(corr_list))
 
-corr_df = pd.concat([pd.DataFrame(col_list,columns=['columns']), pd.DataFrame(corr_list
-                                                                              ,columns=['Correlation'])], axis=1)
+corr_df = pd.concat([pd.DataFrame(col_list, columns=['columns']), pd.DataFrame(corr_list
+                                                                               , columns=['Correlation'])], axis=1)
 
 corr_df_nulls = pd.merge(null_df, corr_df, left_index=True, right_on='columns')
 print(corr_df_nulls.sort_values(by='Correlation'))
 
 # Dataframe containing each of the correlations
 all_corrs = mdl_train_numeric.corr()
-
 
 # Sector
 mdl_data_train['Sector'].unique()  # nan and 'None' in the column
@@ -716,7 +690,6 @@ mdl_data_test['Sector'].unique()  # nan and 'None' in the column
 mdl_data_test['Sector'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
 mdl_data_test['Sector'].unique()  # no nan or 'None' values in the column
 mdl_data_test['Sector'].isnull().sum()  # 0 value returned
-
 
 # Industry
 mdl_data_train['Industry'].isnull().sum()  # 7 missing values
@@ -731,13 +704,12 @@ mdl_data_test['Industry'].replace(to_replace=[np.nan, 'None'], value=['Unknown',
 mdl_data_test['Industry'].unique()  # no 'None' values in the column
 mdl_data_test['Industry'].isnull().sum()  # 0 value returned
 
-
 null_value_pc(mdl_data_train)  # Sector and industry no longer have missing values
 
 # We need to drop the 'future_price' and 'future_price_gth' from our model
 future_test_pc_df = mdl_data_test[['future_price_gth']]
-mdl_data_train.drop(['future_price','future_price_gth', 'fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
-mdl_data_test.drop(['future_price','future_price_gth', 'fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
+mdl_data_train.drop(['future_price', 'future_price_gth', 'fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
+mdl_data_test.drop(['future_price', 'future_price_gth', 'fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
 
 mdl_data_train.shape
 future_test_pc_df.head()
@@ -777,7 +749,6 @@ mdl_data_test = mdl_data_test.drop(['Symbol', 'AssetType', 'Name', 'Currency', '
 
 print(pd.DataFrame(mdl_data_train.dtypes, columns=['datatype']).sort_values('datatype'))  # 3 character fields remaining
 
-
 # Replace all other missing values with 0
 # Revenue, gross profit and other values which were null had very few nulls......
 null_value_pc(mdl_data_train)
@@ -793,8 +764,6 @@ null_value_pc(mdl_data_train)
 
 mdl_data_test.info()
 
-
-
 ##################################################################################################################
 # Section 4 - Modelling
 ##################################################################################################################
@@ -808,7 +777,7 @@ mdl_data_test.info()
 # The original random forest model had an R squared of 1.3% where most of the test scores were actually negative
 #
 
-X_train_df = mdl_data_train.drop(['gt_10pc_gth','month'], axis=1)
+X_train_df = mdl_data_train.drop(['gt_10pc_gth', 'month'], axis=1)
 X_train_df = pd.get_dummies(data=X_train_df, drop_first=True)
 y_train_df = mdl_data_train['gt_10pc_gth']
 X_test_df = mdl_data_test.drop(['gt_10pc_gth'], axis=1)
@@ -816,12 +785,10 @@ X_test_df = pd.get_dummies(data=X_test_df, drop_first=True)
 X_test_df = X_test_df.drop(['Industry_Oil & Gas Pipelines'], axis=1)
 y_test_df = mdl_data_test['gt_10pc_gth']
 
-
 X_train_df.shape
 X_test_df.shape
 y_train_df.shape
 y_test_df.shape
-
 
 ##
 # y_train_df.to_csv(r'Files\y_train_df.csv', index=True, header=True)
@@ -831,12 +798,10 @@ y_train = y_train_df.values
 X_test = X_test_df.values
 y_test = y_test_df.values
 
-y_train = y_train.reshape(len(y_train),1)  # For feature scaling you need a 2D array as this is what the StandardScaler expects
-y_test = y_test.reshape(len(y_test),1)
+y_train = y_train.reshape(len(y_train),
+                          1)  # For feature scaling you need a 2D array as this is what the StandardScaler expects
+y_test = y_test.reshape(len(y_test), 1)
 print(y_train)
-
-
-
 
 # Feature Scaling
 # Scale the values such that each are in the range [0,1]
@@ -845,7 +810,6 @@ sc_X_train = MinMaxScaler()
 sc_X_test = MinMaxScaler()
 X_train = sc_X_train.fit_transform(X_train)
 X_test = sc_X_test.fit_transform(X_test)
-
 
 # Impute missing values
 # from sklearn.impute import KNNImputer
@@ -897,7 +861,6 @@ y_train_rv = y_train_rv_df.values.ravel()
 X_test_rv = X_test_rv_df.values
 y_test_rv = y_test_rv_df.values.ravel()
 
-
 y_test_rv.shape
 
 # Recursive feature elimination
@@ -915,24 +878,18 @@ y_test_rv.shape
 # plt.show()
 
 
-
-
-classifier = KNeighborsClassifier(n_neighbors = 5, metric = 'minkowski', p = 2)
+classifier = KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2)
 # classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy', random_state=1)
-# classifier = LogisticRegression(C=1, max_iter=1000, random_state=2)
+# classifier = LogisticRegression(C=1, max_iter=1000, random_state=1)
 
 classifier.fit(X_train_rv, y_train_rv)
 
-
-from sklearn.metrics import confusion_matrix, accuracy_score , classification_report
+from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 
 y_pred = classifier.predict(X_test_rv)
 cm = confusion_matrix(y_test_rv, y_pred)
 print(cm)  # only 1 incorrect prediction
 print(classification_report(y_test_rv, y_pred))
-
-
-
 
 # Random Forest
 # Run a random forest to check what are the most important features in predicting future stock prices
@@ -943,28 +900,28 @@ print(classification_report(y_test_rv, y_pred))
 #################################################################################################################
 
 model_params = {
-    'logistic_regression' : {'model' : LogisticRegression( max_iter=1000, random_state = 1),
-             'params' : {'C': [0.25, 0.5, 0.75, 1, 5]}},
+    'logistic_regression': {'model': LogisticRegression(max_iter=1000, random_state=1),
+                            'params': {'C': [0.25, 0.5, 0.75, 1, 5]}},
 
-    'random_forest' : { 'model': RandomForestClassifier(criterion='entropy', random_state=1),
-                        'params': {'n_estimators' : [50,100,200,500, 1000], 'max_features': ['auto', 'sqrt','log2'],
-                                   'min_samples_leaf' : [1,2,4], 'min_samples_split' : [2, 5, 10]}},
+    'random_forest': {'model': RandomForestClassifier(criterion='entropy', random_state=1),
+                      'params': {'n_estimators': [50, 100, 200, 500, 1000], 'max_features': ['auto', 'sqrt', 'log2'],
+                                 'min_samples_leaf': [1, 2, 4], 'min_samples_split': [2, 5, 10]}},
 
-    'knn' : { 'model' : KNeighborsClassifier(algorithm='kd_tree'),
-              'params' : {'n_neighbors':[5,10,15,25,50,100]}
-             }
+    'knn': {'model': KNeighborsClassifier(algorithm='kd_tree'),
+            'params': {'n_neighbors': [5, 10, 15, 25, 50, 100]}
+            }
 }
 
 model_params = {
-    'logistic_regression' : {'model' : LogisticRegression( max_iter=1000, random_state = 1),
-             'params' : {'C': [0.25]}},
+    'logistic_regression': {'model': LogisticRegression(max_iter=1000, random_state=1),
+                            'params': {'C': [0.25]}},
 
-    'random_forest' : { 'model': RandomForestClassifier(criterion='entropy', random_state=1),
-                        'params': {'n_estimators' : [100]}},
+    'random_forest': {'model': RandomForestClassifier(criterion='entropy', random_state=1),
+                      'params': {'n_estimators': [100]}},
 
-    'knn' : { 'model' : KNeighborsClassifier(algorithm='kd_tree'),
-              'params' : {'n_neighbors':[5]}
-             }
+    'knn': {'model': KNeighborsClassifier(algorithm='kd_tree'),
+            'params': {'n_neighbors': [5]}
+            }
 }
 print(model_params)
 
@@ -972,74 +929,56 @@ scores = []
 all_scores = []
 
 for model_name, mp in model_params.items():
-    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='accuracy', cv=10,
-                       return_train_score= True, verbose=2)
+    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='precision', cv=10,
+                       return_train_score=True, verbose=2)
     clf.fit(X_train_rv, y_train_rv)
     scores.append({
-        'model' : model_name,
-        'best_score' : clf.best_score_,
-        'best_params' : clf.best_params_
+        'model': model_name,
+        'best_score': clf.best_score_,
+        'best_params': clf.best_params_
     })
     all_scores.append({
         'model': model_name,
         'avg_score': clf.cv_results_['mean_test_score'],
-        'std_test_score' : clf.cv_results_['std_test_score'],
+        'std_test_score': clf.cv_results_['std_test_score'],
         'params': clf.cv_results_['params']
     })
 
-
 print(scores)
 
-scores_df = pd.DataFrame(scores, columns=['model','best_score','best_params'])
+scores_df = pd.DataFrame(scores, columns=['model', 'best_score', 'best_params'])
 print(scores_df)
-
 
 #################################################################################################################
 # Section 4.1 - Stacking the models with the best hyperparameters
 #################################################################################################################
 
 # define the base models
+from sklearn.ensemble import StackingClassifier
+
 level0 = list()
 
-level0.append(('knn', KNeighborsClassifier()))
-level0.append(('cart', DecisionTreeClassifier()))
-level0.append(('svm', SVC()))
-level0.append(('bayes', GaussianNB()))
+level0.append(('knn', KNeighborsClassifier(algorithm='kd_tree', n_neighbors=5)))
+level0.append(('cart', RandomForestClassifier(n_estimators=100, criterion='entropy', random_state=1)))
+level0.append(('log_reg', LogisticRegression(max_iter=1000, C=0.25, random_state=1)))
 
 # define meta learner model
-level1 = KNeighborsClassifier()
+level1 = RandomForestClassifier(n_estimators=100, criterion='entropy', random_state=1)
 
 # define the stacking ensemble
 model = StackingClassifier(estimators=level0, final_estimator=level1, cv=5)
 
 # fit the model on all available data
-model.fit(X_train, y_train)
+model.fit(X_train_rv, y_train_rv)
 
 # predict the test data
-pred = model.predict(X_test)
+y_pred = model.predict(X_test_rv)
 
-# # Read the cv_results property into a dataframe & print it out
-# cv_results_df = pd.DataFrame(grid_rf_class.cv_results_)
-# print(cv_results_df)
-#
-# # Extract and print the column with a dictionary of hyperparameters used
-# column = cv_results_df.loc[:, ["params"]]
-# print(column)
-#
-# # Extract and print the row that had the best mean test score
-# best_row = cv_results_df[cv_results_df["rank_test_score"] == 1]
-# print(best_row)
-#
-# # Print out the ROC_AUC score from the best-performing square
-# best_score = grid_rf_class.best_score_
-# print(best_score)
-#
-# # Fit the best model
-# clf= RandomForestClassifier(criterion='entropy', max_features ='log2', n_estimators=200)
-# clf.fit(X_train_rv, y_train_rv)
-#
-# y_pred = clf.predict(X_test_rv)
-# print(classification_report(y_test_rv, y_pred))
+from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
+
+cm = confusion_matrix(y_test_rv, y_pred)
+print(cm)
+print(classification_report(y_test_rv, y_pred))
 
 
 #################################################################################################################
@@ -1058,12 +997,12 @@ from tpot import TPOTClassifier
 # Create the tpot classifier
 # tpot_clf = TPOTClassifier(generations=number_generations, population_size=population_size,
 #                           offspring_size=offspring_size, scoring=scoring_function,
-#                           verbosity=2, random_state=2, cv=2)
+#                           verbosity=2, random_state=2, cv=5)
 #
 # # Fit the classifier to the training data
 # tpot_clf.fit(X_train_rv, y_train_rv)
 #
-# # Score on the test set - 33.6%
+# # Score on the test set
 # tpot_clf.score(X_test_rv, y_test_rv)
 
 
@@ -1077,12 +1016,13 @@ from tpot import TPOTClassifier
 # from xgboost import XGBClassifier
 # classifier = XGBClassifier()
 from catboost import CatBoostClassifier
+
 classifier = CatBoostClassifier()
 classifier.fit(X_train_rv, y_train_rv)
 
-
 # Making the Confusion Matrix
 from sklearn.metrics import confusion_matrix, accuracy_score
+
 y_pred = classifier.predict(X_test_rv)
 cm = confusion_matrix(y_test_rv, y_pred)
 print(cm)
@@ -1091,9 +1031,12 @@ accuracy_score(y_test_rv, y_pred)  #
 # Applying k-Fold Cross Validation
 # The average accuracy across the K fold cross validations is 96.53% making it the best performing algorithm
 from sklearn.model_selection import cross_val_score
-accuracies = cross_val_score(estimator = classifier, X = X_train_rv, y = y_train_rv, cv = 3)
-print("Accuracy: {:.2f} %".format(accuracies.mean()*100))
-print("Standard Deviation: {:.2f} %".format(accuracies.std()*100))
+
+accuracies = cross_val_score(estimator=classifier, X=X_train_rv, y=y_train_rv, cv=3)
+print("Accuracy: {:.2f} %".format(accuracies.mean() * 100))
+print("Precision: {:.2f} %").format(precision.mean() * 100))
+print("Standard Deviation: {:.2f} %".format(accuracies.std() * 100))
+
 
 
 #################################################################################################################
@@ -1136,13 +1079,12 @@ ann_1.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
 # For binary outcomes we always have to use binary_crossentropy and for non-binary is categorical_crossentropy
 # For metrics we can put in 'mse', 'mae', 'mape', 'cosine' (for numeric output node you would also
 # change loss to 'mse'
-ann_1.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = [tf.keras.metrics.Precision()])
+ann_1.compile(optimizer='adam', loss='binary_crossentropy', metrics=[tf.keras.metrics.Precision()])
 
 # Training the ANN on the Training set
 # We are doing batch learning, a good rule of thumb is to use 32
 # epochs is the number of times we run over the data, in our case we run over the data 100 times
-history_1 = ann_1.fit(X_train_rv, y_train_rv, batch_size = 32, epochs = 100)
-
+history_1 = ann_1.fit(X_train_rv, y_train_rv, batch_size=32, epochs=100)
 
 # Fit the second Neural Network
 ann_2 = tf.keras.models.Sequential()
@@ -1151,8 +1093,8 @@ ann_2.add(Dropout(0.2))
 ann_2.add(tf.keras.layers.Dense(units=50, activation='relu'))
 ann_2.add(tf.keras.layers.Dense(units=10, activation='relu'))
 ann_2.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
-ann_2.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = [tf.keras.metrics.Precision()])
-history_2 = ann_2.fit(X_train_rv, y_train_rv, batch_size = 32, epochs = 100)
+ann_2.compile(optimizer='adam', loss='binary_crossentropy', metrics=[tf.keras.metrics.Precision()])
+history_2 = ann_2.fit(X_train_rv, y_train_rv, batch_size=32, epochs=100)
 
 # Fit the third Neural Network
 ann_3 = tf.keras.models.Sequential()
@@ -1161,9 +1103,8 @@ ann_2.add(Dropout(0.1))
 ann_3.add(tf.keras.layers.Dense(units=25, activation=tf.keras.activations.tanh))
 ann_3.add(tf.keras.layers.Dense(units=10, activation=tf.keras.activations.tanh))
 ann_3.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
-ann_3.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = [tf.keras.metrics.Precision()])
-history_3 = ann_3.fit(X_train_rv, y_train_rv, batch_size = 32, epochs = 100)
-
+ann_3.compile(optimizer='adam', loss='binary_crossentropy', metrics=[tf.keras.metrics.Precision()])
+history_3 = ann_3.fit(X_train_rv, y_train_rv, batch_size=32, epochs=100)
 
 # Plot losses
 # Once we've fit a model, we usually check the training loss curve to make sure it's flattened out.
@@ -1179,14 +1120,9 @@ plt.title('Precision v Loss')
 plt.legend()
 plt.show()
 
-
-
-
-
-
 y_pred = ann.predict(X_test_rv)
 y_pred = (y_pred > 0.5)
-print(np.concatenate((y_pred.reshape(len(y_pred),1), y_test_rv.reshape(len(y_test_rv),1)),1))
+print(np.concatenate((y_pred.reshape(len(y_pred), 1), y_test_rv.reshape(len(y_test_rv), 1)), 1))
 
 # Making the Confusion Matrix
 # The model has an accuracy score of 86.5%
@@ -1197,12 +1133,10 @@ cr = classification_report(y_test_rv, y_pred)
 print(cr)
 accuracy_score(y_test_rv, y_pred)
 
-
 y_pred.shape
 
-
 # Write out the CSV
-y_pred_df = pd.DataFrame(y_pred,columns=['prob'])
+y_pred_df = pd.DataFrame(y_pred, columns=['prob'])
 y_pred.to_csv(r'Files\y_pred.csv', index=True, header=True)
 print(y_pred_df)
 
@@ -1230,7 +1164,6 @@ train_preds = np.mean(np.hstack((train_pred1, train_pred2, train_pred3)), axis=1
 test_preds = np.mean(np.hstack((test_pred1, test_pred2, test_pred3)), axis=1)
 print(test_preds[-5:])
 
-
 #################################################################################################################
 # Section 4.4 - Comparing the models
 #################################################################################################################
@@ -1252,12 +1185,12 @@ Sigma = risk_models.sample_cov(stock_prices)
 
 # Obtain the efficient frontier
 ef = EfficientFrontier(mu, Sigma)
-print (mu, Sigma)
+print(mu, Sigma)
 
 # Calculate weights for the maximum Sharpe ratio portfolio
 raw_weights_maxsharpe = ef.max_sharpe()
 cleaned_weights_maxsharpe = ef.clean_weights()
-print (raw_weights_maxsharpe, cleaned_weights_maxsharpe)
+print(raw_weights_maxsharpe, cleaned_weights_maxsharpe)
 
 # Historical drawdown
 # Calculate the running maximum
@@ -1267,15 +1200,11 @@ running_max = np.maximum.accumulate(cum_rets)
 running_max[running_max < 1] = 1
 
 # Calculate the percentage drawdown
-drawdown = (cum_rets)/running_max  - 1
+drawdown = (cum_rets) / running_max - 1
 
 # Plot the results
 drawdown.plot()
 plt.show()
-
-
-
-
 
 #################################################################################################################
 # Section 6 - Implementation of the model at Jan '21
