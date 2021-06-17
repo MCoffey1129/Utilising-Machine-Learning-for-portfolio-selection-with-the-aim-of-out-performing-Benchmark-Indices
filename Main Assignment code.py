@@ -912,17 +912,7 @@ model_params = {
             }
 }
 
-model_params = {
-    'logistic_regression': {'model': LogisticRegression(max_iter=1000, random_state=1),
-                            'params': {'C': [0.25]}},
-
-    'random_forest': {'model': RandomForestClassifier(criterion='entropy', random_state=1),
-                      'params': {'n_estimators': [100]}},
-
-    'knn': {'model': KNeighborsClassifier(algorithm='kd_tree'),
-            'params': {'n_neighbors': [5]}
-            }
-}
+#
 print(model_params)
 
 scores = []
@@ -957,13 +947,15 @@ print(scores_df)
 from sklearn.ensemble import StackingClassifier
 
 level0 = list()
+# from xgboost import XGBClassifier
 
+from catboost import CatBoostClassifier
 level0.append(('knn', KNeighborsClassifier(algorithm='kd_tree', n_neighbors=5)))
 level0.append(('cart', RandomForestClassifier(n_estimators=100, criterion='entropy', random_state=1)))
 level0.append(('log_reg', LogisticRegression(max_iter=1000, C=0.25, random_state=1)))
 
 # define meta learner model
-level1 = RandomForestClassifier(n_estimators=100, criterion='entropy', random_state=1)
+level1 = LogisticRegression()
 
 # define the stacking ensemble
 model = StackingClassifier(estimators=level0, final_estimator=level1, cv=5)
@@ -1012,13 +1004,45 @@ from tpot import TPOTClassifier
 
 # XGBoost
 
+xgbc = XGBClassifier()
+cbc = CatBoostClassifier()
 
-# from xgboost import XGBClassifier
-# classifier = XGBClassifier()
-from catboost import CatBoostClassifier
 
-classifier = CatBoostClassifier()
-classifier.fit(X_train_rv, y_train_rv)
+model_params_XGB = {
+    'XGB': {'model': XGBClassifier(),
+                            'params': {'learning_rate': [0.3,0.1,0.01], 'max_depth': [3,5,7],
+                                       'gamma' : [0,1,5]}}}
+
+model_params_CB = {
+    'CatBoost': {'model': CatBoostClassifier(),
+                            'params': {'learning_rate': [0.3,0.1,0.01], 'max_depth': [3,5,7],
+                                       'n_estimators' : [100,200,300]}}}
+
+
+gscb = grid_search(model_params_CB,
+            X_train_rv,
+            y=None,
+            cv=5,
+            scoring='precision',
+            verbose=True
+            )
+
+
+gsxgb =
+
+
+
+# Fit the model
+gscb.fit(X_train_rv, y_train_rv)
+
+#returns the estimator with the best performance
+print(gscb.best_estimator_)
+
+#returns the best score
+print(gscb.best_score_)
+
+#returns the best parameters
+print(gscb.best_params_)
 
 # Making the Confusion Matrix
 from sklearn.metrics import confusion_matrix, accuracy_score
@@ -1036,6 +1060,17 @@ accuracies = cross_val_score(estimator=classifier, X=X_train_rv, y=y_train_rv, c
 print("Accuracy: {:.2f} %".format(accuracies.mean() * 100))
 print("Precision: {:.2f} %").format(precision.mean() * 100))
 print("Standard Deviation: {:.2f} %".format(accuracies.std() * 100))
+
+# Predict with a model
+gbt_preds = clf_gbt.predict_proba(X_test)
+
+# Create dataframes of first five predictions, and first five true labels
+preds_df = pd.DataFrame(gbt_preds[:,1][0:5], columns = ['prob_default'])
+true_df = y_test.head()
+
+# Concatenate and print the two data frames for comparison
+print(pd.concat([true_df.reset_index(drop = True), preds_df], axis = 1))
+
 
 
 
