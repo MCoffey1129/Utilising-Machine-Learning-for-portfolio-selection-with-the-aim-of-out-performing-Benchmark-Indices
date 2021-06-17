@@ -878,18 +878,18 @@ y_test_rv.shape
 # plt.show()
 
 
-classifier = KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2)
+# classifier = KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2)
 # classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy', random_state=1)
 # classifier = LogisticRegression(C=1, max_iter=1000, random_state=1)
 
-classifier.fit(X_train_rv, y_train_rv)
-
-from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
-
-y_pred = classifier.predict(X_test_rv)
-cm = confusion_matrix(y_test_rv, y_pred)
-print(cm)  # only 1 incorrect prediction
-print(classification_report(y_test_rv, y_pred))
+# classifier.fit(X_train_rv, y_train_rv)
+#
+# from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
+#
+# y_pred = classifier.predict(X_test_rv)
+# cm = confusion_matrix(y_test_rv, y_pred)
+# print(cm)  # only 1 incorrect prediction
+# print(classification_report(y_test_rv, y_pred))
 
 # Random Forest
 # Run a random forest to check what are the most important features in predicting future stock prices
