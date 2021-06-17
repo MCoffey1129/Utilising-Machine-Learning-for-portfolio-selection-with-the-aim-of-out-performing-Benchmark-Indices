@@ -950,8 +950,8 @@ model_params = {
                         'params': {'n_estimators' : [50,100,200,500, 1000], 'max_features': ['auto', 'sqrt','log2'],
                                    'min_samples_leaf' : [1,2,4], 'min_samples_split' : [2, 5, 10]}},
 
-    'knn' : { 'model' : KNeighborsClassifier(metric = 'minkowski', p = 2),
-              'params' : {'n_neighbors':[5,10,15,25], 'p': [1,2], 'leaf_size' : [30, 50,100,200]}
+    'knn' : { 'model' : KNeighborsClassifier(algorithm='kd_tree'),
+              'params' : {'n_neighbors':[5,10,15,25,50,100]}
              }
 }
 
