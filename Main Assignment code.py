@@ -877,16 +877,24 @@ y_test_rv.shape
 # plt.plot(range(1,len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
 # plt.show()
 
+level0.append(('knn', KNeighborsClassifier()))
+level0.append(('r_forest', RandomForestClassifier()))
+level0.append(('log_reg', LogisticRegression(max_iter=1000)))
+
 
 # classifier = KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2)
-classifier = RandomForestClassifier(max_features= 'log2' , min_samples_leaf= 4, min_samples_split= 10,
-                                                  n_estimators = 1000, random_state=1)
+#classifier = RandomForestClassifier(n_estimators = 10)
+classifier = LogisticRegression(C=5,max_iter=1000)
 # classifier = LogisticRegression(C=1, max_iter=1000, random_state=1)
 
 classifier.fit(X_train_rv, y_train_rv)
 #
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 #
+y_pred_train = classifier.predict(X_train_rv)
+cm = confusion_matrix(y_train_rv, y_pred_train)
+print(cm)
+
 y_pred = classifier.predict(X_test_rv)
 cm = confusion_matrix(y_test_rv, y_pred)
 print(cm)  # only 1 incorrect prediction
@@ -902,10 +910,10 @@ print(classification_report(y_test_rv, y_pred))
 
 model_params = {
     'logistic_regression': {'model': LogisticRegression(max_iter=1000, random_state=1),
-                            'params': {'C': [0.25, 0.5, 0.75, 1, 5]}},
+                            'params': {'C': [0.01, 0.05, 0.1, 0.3]}},
 
     'random_forest': {'model': RandomForestClassifier(criterion='entropy', random_state=1),
-                      'params': {'n_estimators': [50, 100, 200, 500, 1000], 'max_features': ['auto', 'sqrt', 'log2'],
+                      'params': {'n_estimators': [200, 500, 1000], 'max_features': ['sqrt', 'log2'],
                                  'min_samples_leaf': [1, 2, 4], 'min_samples_split': [2, 5, 10]}},
 
     'knn': {'model': KNeighborsClassifier(algorithm='kd_tree'),
@@ -923,7 +931,7 @@ all_scores = []
 # With KNN I did not have enough memory to run further tests. Check a value of 0.1 for logistic regression
 
 for model_name, mp in model_params.items():
-    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='precision', cv=10,
+    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='f1', cv=10,
                        return_train_score=True, verbose=2)
     clf.fit(X_train_rv, y_train_rv)
     scores.append({
@@ -940,7 +948,6 @@ for model_name, mp in model_params.items():
 
 print(scores)
 
-# Given the amount of the data increasing n_estimators or reducing the dimensionality would be adviced.
 print(all_scores)
 
 scores_df = pd.DataFrame(scores, columns=['model', 'best_score', 'best_params'])
@@ -951,21 +958,28 @@ print(scores_df)
 # Section 4.1 - Stacking the models with the best hyperparameters
 #################################################################################################################
 
-# define the base models
+# Define the base models
+# Please note the Random Forest
 from sklearn.ensemble import StackingClassifier
+from xgboost import XGBClassifier
+from catboost import CatBoostClassifier
 
 level0 = list()
 
-level0.append(('knn', KNeighborsClassifier(algorithm='kd_tree', n_neighbors=100)))
-level0.append(('rforest', RandomForestClassifier(max_features= 'log2' , min_samples_leaf= 4, min_samples_split= 10,
-                                                 n_estimators = 1000, random_state=1)))
-level0.append(('log_reg', LogisticRegression(max_iter=1000, C=0.25, random_state=1)))
+# level0.append(('knn', KNeighborsClassifier(algorithm='kd_tree', n_neighbors=5)))
+# level0.append(('r_forest', RandomForestClassifier(criterion='entropy', n_estimators = 200, random_state=1)))
+# level0.append(('log_reg', LogisticRegression(max_iter=1000, C=0.25, random_state=1)))
+level0.append(('knn', KNeighborsClassifier()))
+level0.append(('r_forest', RandomForestClassifier()))
+level0.append(('XGB', XGBClassifier()))
+level0.append(('CB', CatBoostClassifier()))
 
 # define meta learner model
-level1 = LogisticRegression()
+# level1 = LogisticRegression(max_iter=1000, C=0.25, random_state=1)
+level1 = XGBClassifier()
 
 # define the stacking ensemble
-model = StackingClassifier(estimators=level0, final_estimator=level1, cv=5, verbose=2)
+model = StackingClassifier(estimators=level0, final_estimator=level1, cv=5, n_jobs=-1, verbose=2)
 
 # fit the model on all available data
 model.fit(X_train_rv, y_train_rv)
@@ -973,11 +987,12 @@ model.fit(X_train_rv, y_train_rv)
 # predict the test data
 y_pred = model.predict(X_test_rv)
 
-from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
-
 cm = confusion_matrix(y_test_rv, y_pred)
 print(cm)
 print(classification_report(y_test_rv, y_pred))
+
+# Probabilities
+stkd_probs = classifier.predict_proba(X_test_rv)
 
 
 #################################################################################################################
@@ -1011,8 +1026,7 @@ from tpot import TPOTClassifier
 
 # XGBoost
 
-from xgboost import XGBClassifier
-from catboost import CatBoostClassifier
+
 
 xgbc = XGBClassifier()
 cbc = CatBoostClassifier()
@@ -1026,7 +1040,7 @@ model_params_XGB = {
 model_params_CB = {
     'CatBoost': {'model': CatBoostClassifier(),
                             'params': {'learning_rate': [0.3,0.1,0.01], 'max_depth': [3,5,7],
-                                       'n_estimators' : [100,200,300]}}}
+                                       'n_estimators' : [100,200,500]}}}
 
 
 gscb = grid_search(model_params_CB,
