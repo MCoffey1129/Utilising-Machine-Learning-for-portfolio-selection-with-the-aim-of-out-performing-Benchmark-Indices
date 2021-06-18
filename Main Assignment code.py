@@ -879,17 +879,18 @@ y_test_rv.shape
 
 
 # classifier = KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2)
-# classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy', random_state=1)
+classifier = RandomForestClassifier(max_features= 'log2' , min_samples_leaf= 4, min_samples_split= 10,
+                                                  n_estimators = 1000, random_state=1)
 # classifier = LogisticRegression(C=1, max_iter=1000, random_state=1)
 
-# classifier.fit(X_train_rv, y_train_rv)
+classifier.fit(X_train_rv, y_train_rv)
 #
-# from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
+from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 #
-# y_pred = classifier.predict(X_test_rv)
-# cm = confusion_matrix(y_test_rv, y_pred)
-# print(cm)  # only 1 incorrect prediction
-# print(classification_report(y_test_rv, y_pred))
+y_pred = classifier.predict(X_test_rv)
+cm = confusion_matrix(y_test_rv, y_pred)
+print(cm)  # only 1 incorrect prediction
+print(classification_report(y_test_rv, y_pred))
 
 # Random Forest
 # Run a random forest to check what are the most important features in predicting future stock prices
@@ -918,6 +919,9 @@ print(model_params)
 scores = []
 all_scores = []
 
+# Random Forest CV mean precision of 57%, logistic regression of 52% and KNN of 48%
+# With KNN I did not have enough memory to run further tests. Check a value of 0.1 for logistic regression
+
 for model_name, mp in model_params.items():
     clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='precision', cv=10,
                        return_train_score=True, verbose=2)
@@ -936,8 +940,12 @@ for model_name, mp in model_params.items():
 
 print(scores)
 
+# Given the amount of the data increasing n_estimators or reducing the dimensionality would be adviced.
+print(all_scores)
+
 scores_df = pd.DataFrame(scores, columns=['model', 'best_score', 'best_params'])
 print(scores_df)
+
 
 #################################################################################################################
 # Section 4.1 - Stacking the models with the best hyperparameters
@@ -947,18 +955,17 @@ print(scores_df)
 from sklearn.ensemble import StackingClassifier
 
 level0 = list()
-# from xgboost import XGBClassifier
 
-from catboost import CatBoostClassifier
-level0.append(('knn', KNeighborsClassifier(algorithm='kd_tree', n_neighbors=5)))
-level0.append(('cart', RandomForestClassifier(n_estimators=100, criterion='entropy', random_state=1)))
+level0.append(('knn', KNeighborsClassifier(algorithm='kd_tree', n_neighbors=100)))
+level0.append(('rforest', RandomForestClassifier(max_features= 'log2' , min_samples_leaf= 4, min_samples_split= 10,
+                                                 n_estimators = 1000, random_state=1)))
 level0.append(('log_reg', LogisticRegression(max_iter=1000, C=0.25, random_state=1)))
 
 # define meta learner model
 level1 = LogisticRegression()
 
 # define the stacking ensemble
-model = StackingClassifier(estimators=level0, final_estimator=level1, cv=5)
+model = StackingClassifier(estimators=level0, final_estimator=level1, cv=5, verbose=2)
 
 # fit the model on all available data
 model.fit(X_train_rv, y_train_rv)
@@ -1003,6 +1010,9 @@ from tpot import TPOTClassifier
 #################################################################################################################
 
 # XGBoost
+
+from xgboost import XGBClassifier
+from catboost import CatBoostClassifier
 
 xgbc = XGBClassifier()
 cbc = CatBoostClassifier()
