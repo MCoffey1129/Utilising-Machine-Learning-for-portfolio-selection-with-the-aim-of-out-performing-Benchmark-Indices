@@ -907,10 +907,17 @@ print(classification_report(y_test_rv, y_pred))
 #################################################################################################################
 # Section 0 - Grid Search to find the best hyperparameters to use
 #################################################################################################################
+from xgboost import XGBClassifier
+from catboost import CatBoostClassifier
 
 model_params = {
-    'logistic_regression': {'model': LogisticRegression(max_iter=1000, random_state=1),
-                            'params': {'C': [0.01, 0.05, 0.1, 0.3]}},
+    'XGB': {'model': XGBClassifier(),
+                            'params': {'learning_rate': [0.1,0.3,0.5], 'max_depth': [3,6,9],
+                                       'gamma' : [0,1,5]}},
+
+    'CatBoost': {'model': CatBoostClassifier(),
+                 'params': {'learning_rate': [0.3, 0.1, 0.01], 'max_depth': [3, 4, 5],
+                            'n_estimators': [100, 200, 300]}}
 
     'random_forest': {'model': RandomForestClassifier(criterion='entropy', random_state=1),
                       'params': {'n_estimators': [200, 500, 1000], 'max_features': ['sqrt', 'log2'],
@@ -961,21 +968,16 @@ print(scores_df)
 # Define the base models
 # Please note the Random Forest
 from sklearn.ensemble import StackingClassifier
-from xgboost import XGBClassifier
-from catboost import CatBoostClassifier
+
 
 level0 = list()
 
-# level0.append(('knn', KNeighborsClassifier(algorithm='kd_tree', n_neighbors=5)))
-# level0.append(('r_forest', RandomForestClassifier(criterion='entropy', n_estimators = 200, random_state=1)))
-# level0.append(('log_reg', LogisticRegression(max_iter=1000, C=0.25, random_state=1)))
 level0.append(('knn', KNeighborsClassifier()))
 level0.append(('r_forest', RandomForestClassifier()))
-level0.append(('XGB', XGBClassifier()))
+level0.append(('XGB', XGBClassifier(n_jobs=-1)))
 level0.append(('CB', CatBoostClassifier()))
 
 # define meta learner model
-# level1 = LogisticRegression(max_iter=1000, C=0.25, random_state=1)
 level1 = XGBClassifier()
 
 # define the stacking ensemble
@@ -992,7 +994,25 @@ print(cm)
 print(classification_report(y_test_rv, y_pred))
 
 # Probabilities
-stkd_probs = classifier.predict_proba(X_test_rv)
+stkd_probs = model.predict_proba(X_test_rv)
+stkd_probs_df = pd.DataFrame(stkd_probs[:,1], columns = ['Stacked_mdl_prob'])
+
+stkd_mdl_results = pd.concat([symbol_test_df,
+                                mdl_data_test[['Industry','gt_10pc_gth']].set_index(symbol_test_df.index),
+                                future_test_pc_df.set_index(symbol_test_df.index),
+                                stkd_probs_df.set_index(symbol_test_df.index)], axis=1)
+
+stkd_mdl_results.sort_values(by=['Stacked_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
+stkd_mdl_results.to_csv(r'Files\stkd_mdl_results.csv', index=False, header=True)
+
+stkd_mdl_results['avg_ret_of_portfolio'] = stkd_mdl_results['future_price_gth'].cumsum() / ( stkd_mdl_results.index + 1)
+stkd_mdl_results['avg_ret_of_market'] = stkd_mdl_results['future_price_gth'].mean()
+print(stkd_mdl_results)
+
+sns.set()
+sns.lineplot(data=stkd_mdl_results.reset_index(),x='index', y='avg_ret_of_portfolio')
+sns.lineplot(data=stkd_mdl_results.reset_index(),x='index', y='avg_ret_of_market', ls='--')
+plt.show()
 
 
 #################################################################################################################
