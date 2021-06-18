@@ -1002,7 +1002,10 @@ stkd_mdl_results = pd.concat([symbol_test_df,
                                 future_test_pc_df.set_index(symbol_test_df.index),
                                 stkd_probs_df.set_index(symbol_test_df.index)], axis=1)
 
+stkd_mdl_results = stkd_mdl_results[stkd_mdl_results['Symbol'] != 'MDWT']
+
 stkd_mdl_results.sort_values(by=['Stacked_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
+
 stkd_mdl_results.to_csv(r'Files\stkd_mdl_results.csv', index=False, header=True)
 
 stkd_mdl_results['avg_ret_of_portfolio'] = stkd_mdl_results['future_price_gth'].cumsum() / ( stkd_mdl_results.index + 1)
