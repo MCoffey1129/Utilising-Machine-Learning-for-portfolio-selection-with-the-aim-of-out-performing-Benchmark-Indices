@@ -39,6 +39,7 @@ from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import chi2
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
+import keras.backend as K
 
 
 # Functions
@@ -139,6 +140,38 @@ def drop_column(tbl,lst):
     output = tbl.drop(lst, axis=1)
     return output
 
+# Functions which will be used in fitting our Neural Network
+def f1(y_true, y_pred):
+    """Calculation of f1"""
+
+    y_pred = K.round(y_pred)
+    tp = K.sum(K.cast(y_true * y_pred, 'float'), axis=0)
+    tn = K.sum(K.cast((1 - y_true) * (1 - y_pred), 'float'), axis=0)
+    fp = K.sum(K.cast((1 - y_true) * y_pred, 'float'), axis=0)
+    fn = K.sum(K.cast(y_true * (1 - y_pred), 'float'), axis=0)
+
+    p = tp / (tp + fp + K.epsilon())
+    r = tp / (tp + fn + K.epsilon())
+
+    f1 = 2 * p * r / (p + r + K.epsilon())
+    f1 = tf.where(tf.is_nan(f1), tf.zeros_like(f1), f1)
+    return K.mean(f1)
+
+
+def f1_loss(y_true, y_pred):
+    """f1 loss"""
+
+    tp = K.sum(K.cast(y_true * y_pred, 'float'), axis=0)
+    tn = K.sum(K.cast((1 - y_true) * (1 - y_pred), 'float'), axis=0)
+    fp = K.sum(K.cast((1 - y_true) * y_pred, 'float'), axis=0)
+    fn = K.sum(K.cast(y_true * (1 - y_pred), 'float'), axis=0)
+
+    p = tp / (tp + fp + K.epsilon())
+    r = tp / (tp + fn + K.epsilon())
+
+    f1 = 2 * p * r / (p + r + K.epsilon())
+    f1 = tf.where(tf.is_nan(f1), tf.zeros_like(f1), f1)
+    return 1 - K.mean(f1)
 
 ###############################################################################################################
 # Section 2.1 - Company Overview
@@ -1004,8 +1037,8 @@ model_params = {
                                        'gamma' : [0,1,5]}},
 
     'CatBoost': {'model': CatBoostClassifier(),
-                 'params': {'learning_rate': [0.3, 0.1, 0.01], 'max_depth': [3, 4, 5],
-                            'n_estimators': [100, 200, 300]}}
+                 'params': {'learning_rate': [0.3, 0.1, 0.03], 'max_depth': [6, 3, 1],
+                            'n_estimators': [100, 200, 400]}},
 
     'random_forest': {'model': RandomForestClassifier(criterion='entropy', random_state=1),
                       'params': {'n_estimators': [200, 500, 1000], 'max_features': ['sqrt', 'log2'],
@@ -1026,7 +1059,7 @@ all_scores = []
 # With KNN I did not have enough memory to run further tests. Check a value of 0.1 for logistic regression
 
 for model_name, mp in model_params.items():
-    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='f1', cv=10,
+    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='accuracy', cv=10,
                        return_train_score=True, verbose=2)
     clf.fit(X_train_rv, y_train_rv)
     scores.append({
@@ -1249,32 +1282,36 @@ ann_1.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
 # For binary outcomes we always have to use binary_crossentropy and for non-binary is categorical_crossentropy
 # For metrics we can put in 'mse', 'mae', 'mape', 'cosine' (for numeric output node you would also
 # change loss to 'mse'
-ann_1.compile(optimizer='adam', loss='binary_crossentropy', metrics=['f1score'])
+ann_1.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
 # Training the ANN on the Training set
 # We are doing batch learning, a good rule of thumb is to use 32
 # epochs is the number of times we run over the data, in our case we run over the data 100 times
 history_1 = ann_1.fit(X_train_rv, y_train_rv, batch_size=32, epochs=100)
 
-# Fit the second Neural Network
+# Fit the second Neural Network - which has 50% dropout in each layer
 ann_2 = tf.keras.models.Sequential()
-ann_2.add(tf.keras.layers.Dense(units=100, activation='relu'))
-ann_2.add(Dropout(0.2))
 ann_2.add(tf.keras.layers.Dense(units=50, activation='relu'))
-ann_2.add(tf.keras.layers.Dense(units=10, activation='relu'))
-ann_2.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
-ann_2.compile(optimizer='adam', loss='binary_crossentropy', metrics=[tf.keras.metrics.Precision()])
-history_2 = ann_2.fit(X_train_rv, y_train_rv, batch_size=32, epochs=100)
-
-# Fit the third Neural Network
-ann_3 = tf.keras.models.Sequential()
-ann_3.add(tf.keras.layers.Dense(units=50, activation=tf.keras.activations.tanh))
 ann_2.add(Dropout(0.1))
-ann_3.add(tf.keras.layers.Dense(units=25, activation=tf.keras.activations.tanh))
-ann_3.add(tf.keras.layers.Dense(units=10, activation=tf.keras.activations.tanh))
+ann_2.add(tf.keras.layers.Dense(units=50, activation='relu'))
+ann_2.add(Dropout(0.1))
+ann_2.add(tf.keras.layers.Dense(units=50, activation='relu'))
+ann_2.add(Dropout(0.1))
+ann_2.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
+ann_2.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+history_2 = ann_2.fit(X_train_rv, y_train_rv, batch_size=12, epochs=100)
+
+# Fit the third Neural Network - which has a 20% droput on each layer and a different activation function
+ann_3 = tf.keras.models.Sequential()
+ann_3.add(tf.keras.layers.Dense(units=30, activation=tf.keras.activations.tanh))
+ann_3.add(Dropout(0.2))
+ann_3.add(tf.keras.layers.Dense(units=30, activation=tf.keras.activations.tanh))
+ann_3.add(Dropout(0.2))
+ann_3.add(tf.keras.layers.Dense(units=30, activation=tf.keras.activations.tanh))
+ann_3.add(Dropout(0.2))
 ann_3.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
-ann_3.compile(optimizer='adam', loss='binary_crossentropy', metrics=[tf.keras.metrics.Precision()])
-history_3 = ann_3.fit(X_train_rv, y_train_rv, batch_size=32, epochs=100)
+ann_3.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+history_3 = ann_3.fit(X_train_rv, y_train_rv, batch_size=20, epochs=100)
 
 # Plot losses
 # Once we've fit a model, we usually check the training loss curve to make sure it's flattened out.
@@ -1283,9 +1320,9 @@ history_3 = ann_3.fit(X_train_rv, y_train_rv, batch_size=32, epochs=100)
 
 
 # Plot the losses from the fit
-plt.plot(history_1.history['precision'], label='NN_1')
-plt.plot(history_2.history['precision'], label='NN_2')
-plt.plot(history_3.history['precision'], label='NN_3')
+plt.plot(history_1.history['loss'], label='NN_1')
+plt.plot(history_2.history['loss'], label='NN_2')
+plt.plot(history_3.history['loss'], label='NN_3')
 plt.title('Precision v Loss')
 plt.legend()
 plt.show()
