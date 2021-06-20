@@ -140,39 +140,6 @@ def drop_column(tbl,lst):
     output = tbl.drop(lst, axis=1)
     return output
 
-# Functions which will be used in fitting our Neural Network
-def f1(y_true, y_pred):
-    """Calculation of f1"""
-
-    y_pred = K.round(y_pred)
-    tp = K.sum(K.cast(y_true * y_pred, 'float'), axis=0)
-    tn = K.sum(K.cast((1 - y_true) * (1 - y_pred), 'float'), axis=0)
-    fp = K.sum(K.cast((1 - y_true) * y_pred, 'float'), axis=0)
-    fn = K.sum(K.cast(y_true * (1 - y_pred), 'float'), axis=0)
-
-    p = tp / (tp + fp + K.epsilon())
-    r = tp / (tp + fn + K.epsilon())
-
-    f1 = 2 * p * r / (p + r + K.epsilon())
-    f1 = tf.where(tf.is_nan(f1), tf.zeros_like(f1), f1)
-    return K.mean(f1)
-
-
-def f1_loss(y_true, y_pred):
-    """f1 loss"""
-
-    tp = K.sum(K.cast(y_true * y_pred, 'float'), axis=0)
-    tn = K.sum(K.cast((1 - y_true) * (1 - y_pred), 'float'), axis=0)
-    fp = K.sum(K.cast((1 - y_true) * y_pred, 'float'), axis=0)
-    fn = K.sum(K.cast(y_true * (1 - y_pred), 'float'), axis=0)
-
-    p = tp / (tp + fp + K.epsilon())
-    r = tp / (tp + fn + K.epsilon())
-
-    f1 = 2 * p * r / (p + r + K.epsilon())
-    f1 = tf.where(tf.is_nan(f1), tf.zeros_like(f1), f1)
-    return 1 - K.mean(f1)
-
 ###############################################################################################################
 # Section 2.1 - Company Overview
 #
@@ -918,7 +885,7 @@ y_deploy = y_deploy_df.values
 y_train = y_train.reshape(len(y_train),
                           1)  # For feature scaling you need a 2D array as this is what the StandardScaler expects
 y_test = y_test.reshape(len(y_test), 1)
-y_deploy = y_deploy.reshape(len(y_test), 1)
+y_deploy = y_deploy.reshape(len(y_deploy), 1)
 print(y_train)
 
 # Feature Scaling
@@ -931,12 +898,14 @@ X_train = sc_X_train.fit_transform(X_train)
 X_test = sc_X_test.fit_transform(X_test)
 X_deploy = sc_X_test.fit_transform(X_deploy)
 
-# Impute missing values
-# from sklearn.impute import KNNImputer
-# imputer = KNNImputer(n_neighbors=5, weights = "uniform")
-# X_train = imputer.fit_transform(X_train)
-# X_test = imputer.fit_transform(X_test)
-# X_deploy = imputer.fit_transform(X_deploy)
+
+# Impute missing values - given time constraints took the default value of 5
+# It would be worth investigating the optimal value for KNNImputer.
+from sklearn.impute import KNNImputer
+imputer = KNNImputer(n_neighbors=5, weights = "uniform")
+X_train = imputer.fit_transform(X_train)
+X_test = imputer.fit_transform(X_test)
+X_deploy = imputer.fit_transform(X_deploy)
 
 # Univariate Feature selection
 
@@ -972,15 +941,15 @@ np.shape(y_test_rv)
 # X_test_rv_df.to_csv(r'Files\X_test_rv_df.csv', index=False, header=True)
 # y_test_rv_df.to_csv(r'Files\y_test_rv_df.csv', index=False, header=True)
 
-X_train_rv_df = pd.read_csv(r'Files\X_train_rv_df.csv')
-y_train_rv_df = pd.read_csv(r'Files\y_train_rv_df.csv')
-X_test_rv_df = pd.read_csv(r'Files\X_test_rv_df.csv')
-y_test_rv_df = pd.read_csv(r'Files\y_test_rv_df.csv')
-
-X_train_rv = X_train_rv_df.values
-y_train_rv = y_train_rv_df.values.ravel()
-X_test_rv = X_test_rv_df.values
-y_test_rv = y_test_rv_df.values.ravel()
+# X_train_rv_df = pd.read_csv(r'Files\X_train_rv_df.csv')
+# y_train_rv_df = pd.read_csv(r'Files\y_train_rv_df.csv')
+# X_test_rv_df = pd.read_csv(r'Files\X_test_rv_df.csv')
+# y_test_rv_df = pd.read_csv(r'Files\y_test_rv_df.csv')
+#
+# X_train_rv = X_train_rv_df.values
+# y_train_rv = y_train_rv_df.values.ravel()
+# X_test_rv = X_test_rv_df.values
+# y_test_rv = y_test_rv_df.values.ravel()
 
 y_test_rv.shape
 
@@ -998,28 +967,26 @@ y_test_rv.shape
 # plt.plot(range(1,len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
 # plt.show()
 
-level0.append(('knn', KNeighborsClassifier()))
-level0.append(('r_forest', RandomForestClassifier()))
-level0.append(('log_reg', LogisticRegression(max_iter=1000)))
+
 
 
 # classifier = KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2)
 #classifier = RandomForestClassifier(n_estimators = 10)
-classifier = LogisticRegression(C=5,max_iter=1000)
+# classifier = LogisticRegression(C=5,max_iter=1000)
 # classifier = LogisticRegression(C=1, max_iter=1000, random_state=1)
 
-classifier.fit(X_train_rv, y_train_rv)
+# classifier.fit(X_train_rv, y_train_rv)
 #
-from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
+# from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 #
-y_pred_train = classifier.predict(X_train_rv)
-cm = confusion_matrix(y_train_rv, y_pred_train)
-print(cm)
-
-y_pred = classifier.predict(X_test_rv)
-cm = confusion_matrix(y_test_rv, y_pred)
-print(cm)  # only 1 incorrect prediction
-print(classification_report(y_test_rv, y_pred))
+# y_pred_train = classifier.predict(X_train_rv)
+# cm = confusion_matrix(y_train_rv, y_pred_train)
+# print(cm)
+#
+# y_pred = classifier.predict(X_test_rv)
+# cm = confusion_matrix(y_test_rv, y_pred)
+# print(cm)  # only 1 incorrect prediction
+# print(classification_report(y_test_rv, y_pred))
 
 # Random Forest
 # Run a random forest to check what are the most important features in predicting future stock prices
@@ -1037,12 +1004,12 @@ model_params = {
                                        'gamma' : [0,1,5]}},
 
     'CatBoost': {'model': CatBoostClassifier(),
-                 'params': {'learning_rate': [0.3, 0.1, 0.03], 'max_depth': [6, 3, 1],
-                            'n_estimators': [100, 200, 400]}},
+                 'params': {'learning_rate': [0.3, 0.1, 0.03], 'depth': [6, 3, 1],
+                            'iterations': [20, 50, 200]}},
 
     'random_forest': {'model': RandomForestClassifier(criterion='entropy', random_state=1),
                       'params': {'n_estimators': [200, 500, 1000], 'max_features': ['sqrt', 'log2'],
-                                 'min_samples_leaf': [1, 2, 4], 'min_samples_split': [2, 5, 10]}},
+                                 'min_samples_leaf': [1,2, 4], 'min_samples_split': [ 2, 5, 10]}},
 
     'knn': {'model': KNeighborsClassifier(algorithm='kd_tree'),
             'params': {'n_neighbors': [5, 10, 15, 25, 50, 100]}
