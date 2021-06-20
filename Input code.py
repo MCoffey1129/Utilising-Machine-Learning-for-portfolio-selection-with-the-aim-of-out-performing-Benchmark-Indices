@@ -1,10 +1,15 @@
+###############################################################################################################
+# Section 1 - Data Import
+# Import the stock information used in the project
+#        1.0 - Import packages required for the data import
+#        1.1 - Import the Stock Symbols for each of the stocks which will be used in the project
+#        1.2 - Complete some initial exploratory analysis on this data
+#        1.3 - Structure the data in order to import the required Stock information from AlphaVantage
+#        1.4 - Import the data from Alpha Vantage
+###############################################################################################################
 
 ###############################################################################################################
-# Section 1 - Import the stocks used in the assignment
-###############################################################################################################
-
-###############################################################################################################
-# Section 1.0 - Import packages required for the assignment
+# Section 1.0 - Import packages required for the data import
 ###############################################################################################################
 
 import pandas as pd
@@ -12,62 +17,51 @@ import requests
 import re
 import time
 
-
-# timer decorator - to check the length of time functions have taken to run
-
-def timer(func):
-    """A decorator that prints how long a function took to run."""
-
-    # Define the wrapper function to return.
-    def wrapper(*args, **kwargs):
-        # When wrapper() is called, get the current time.
-        t_start = time.time()
-        # Call the decorated function and store the result.
-        result = func(*args, **kwargs)
-        # Get the total time it took to run, and print it.
-        t_total = time.time() - t_start
-        print('{} took {}s'.format(func.__name__, t_total))
-        return result
-
-    return wrapper
-
-
+#
 ###############################################################################################################
-# Section 1.1 - Get the tickers for all stocks that trade on the NYSE & the NASDAQ and import them into Pycharm
+# Section 1.1 - Import the Stock Symbols for each of the stocks which will be used in the project
+#
+#             - Get the stock symbols for all stocks that trade on the NYSE & the NASDAQ and import
+#               them into Pycharm
 ###############################################################################################################
 
 # The list of stocks traded on either the NYSE or the NASDAQ was sourced from the NASDAQ website
-# (https://www.nasdaq.com/market-activity/stocks/screener) on the 05/06/2021
+# (https://www.nasdaq.com/market-activity/stocks/screener) on the 05/06/2021.
 
 # Import the CSV into Python
 
 stocks = pd.read_csv(r'Files\NYSE_NASDAQ_stocks_20210604.csv')
 
 ###############################################################################################################
-# Section 1.2 - Exploratory data analysis
+# Section 1.2 - Complete some initial exploratory analysis on this data
 ###############################################################################################################
 
 stocks.head()  # print out the first 5 rows
 stocks.shape  # 7,377 stocks with 11 different features
-stocks.describe()  # No issues with the data, the min IPO year is 1972 and the max IPO year is 2021
-stocks.dtypes  # IPO year should be an integer
+stocks.describe()  # No issues with the numeric data, the min IPO year is 1972 and the max IPO year is 2021
+
+stocks.dtypes  # IPO year should be an integer, last sale and % change are objects, this would be an issue if we
+# were planning on using these fields
+
 stocks.isnull().sum()
 # There is a large number of Nulls in the data, for % Change (3), Market cap (476), Country (597),
 # IPO year (3100), sector (1910) and industry (1911).
-# Given that these unpopulated fields are populated in yahoo finance I will only use the ticker value and name
-# going forward
+# We will look to drop all fields except Symbol and Name and look to source fields such as Country, Sector, Industry and
+# Market Cap from Alpha Vantage
 
 ###############################################################################################################
-# Section 1.3 - Importing data from AlphaVantage
+# Section 1.3 - Structure the data in order to import the required Stock information from AlphaVantage
 ###############################################################################################################
 
-# Create a list of tuples containing stock symbols and names which will be used to pull information from AlphaVantage
+# Create a list of tuples containing stock symbols and stock names which will be used to pull information
+# from Alpha Vantage
+
 stock_df = stocks[['Symbol', 'Name']]
 stock_name_list = (list(stock_df.to_records(index=False)))
 print(stock_name_list)
 
 # Of the 7,377  stocks which are reported on the NYSE and NASDAQ a number of these are either Warrants, Notes or
-# Debentures which will have a different valuation basis then common stock and ordinary shares and may skew our
+# Debentures which will have a different valuation basis than common stock and ordinary shares and may skew our
 # model results so we will remove these from our data (these cases will either be referred to as Warrants, Notes or
 # Debentures in the stock name)
 # To avoid doubling up on certain stocks we will remove Preferred shares from our dataset (Preferred Shares have a
@@ -76,7 +70,7 @@ print(stock_name_list)
 
 
 # We pass two regex expressions through the for loop, the first expression searches for the words Warrant, Notes or
-# Debentures so as to remove these stock from the updated list (please note it searches for the capitalised and
+# Debentures so as to remove these stocks from the updated list (please note it searches for the capitalised and
 # non-capitalised versions of these words).
 # The second regex expression searches the Stock Symbol for non-word characters, please note the stock symbol column
 # contains only non-word characters of "^" and "/" and we do not want to remove stock symbols which contain "/"
@@ -100,34 +94,39 @@ for i in range(len(stock_name_list)):
 print(removal_list1)
 print(removal_list2)
 
-print(len(stock_name_list))  # 7377 entries - original list
+print(len(stock_name_list))  # 7377 stocks - original list
 print(len(removal_list1))  # 581 entries (422 warrants, 135 notes and 24 debentures)
 print(len(removal_list2))  # 432 entries (preferred stock)
-print(len(upd_stock_list))  # 6364 (7377 - 581 - 432), this is our updated list removing Warants, Notes etc.
+print(len(upd_stock_list))  # 6364 (7377 - 581 - 432), this is our updated list removing Warrants, Notes etc.
 
 ######################################################################################################################
-# Section 1.4 - Get required info from AlphaVantage
+# Section 1.4 - Import the data from Alpha Vantage
+
+# When importing data from Alpha Vantage we need to ensure that we do not bring in any forward
+# looking metrics i.e. the number of full time employees in 2021
+
+# We will import six different tables from Alpha Vantage:
+#       1.4.1 : Company Overview
+#       1.4.2 : EPS (earnings per share data)
+#       1.4.3 : Income Statement data
+#       1.4.4 : Balance sheet information
+#       1.4.5 : Cash flow statements
+#       1.4.6 : Monthly adjusted stock prices
+
 ######################################################################################################################
-
-# When importing data from AlphaVantage we need to ensure that we do not bring in any forward
-# looking metrics including market cap and the number of full time employees
-
-# We will import six different tables from AlphaVantage:
-#       .1 : Company Overview
-#       .2 : EPS (earnings per share data)
-#       .3 : Income Statement data
-#       .4 : Balance sheet information
-#       .5 : Cash flow statements
-#       .6 : Monthly adjusted stock prices
-
 
 # Section 1.4.1 -  Company Overview
 
+# API key received from Alpha Vantage
 API_key = "OSPJN1YHMULW3OEO"
 
-# List the columns we would like to keep from the Company overview import
+# List the columns we would like to keep from the Company overview import ("columns" list)
 # Please note there is a sleep function in the for loop used to import the data to ensure we do not go above the
 # max API call restriction
+
+# The imported data is in a json file format. We convert the json output into a list and in-turn into a dataframe
+# and append it on to the overview dataframe.
+# If there is no information for a particular stock nothing gets appended to the overview dataframe
 
 Overview_df = pd.DataFrame()
 columns = ['Symbol', 'AssetType', 'Name', 'Exchange', 'Currency', 'Country', 'Sector', 'Industry']
@@ -151,12 +150,18 @@ for stock in upd_stock_list:
 
     Overview_df = Overview_df.append(Temp_data_df, ignore_index=True)
 
-print(Overview_df)  # 5,919 stocks
+print(Overview_df)  # Company Overview information available for 5,919 of the 6,364 stocks (93%)
 
-# Write out the CSV - to a location on the C drive
+# Write out the table to a CSV to a location on the C drive.
 Overview_df.to_csv(r'Files\Overview_df.csv', index=False, header=True)
 
 # Section 1.4.2 - EPS
+
+# The imported data is in a json file format. We convert the json output into a list and in-turn into a dataframe
+# and append it on to the eps dataframe.
+# If there is no information for a particular stock nothing gets appended to the eps dataframe
+# We will only take in information from Dec '14 onwards as we only have reliabel Income Statement information
+# from Jun '16 onward (see 'AAPL')
 
 Temp_data = pd.DataFrame()
 eps_data = pd.DataFrame()
@@ -187,6 +192,11 @@ eps_data.to_csv(r'Files\eps_data.csv', index=False, header=True)
 
 # Section 1.4.3 - Income Statement
 
+# The imported data is in a json file format. We convert the json output into a list and in-turn into a dataframe
+# and append it on to the Income Statement dataframe.
+# If there is no information for a particular stock nothing gets appended to the Income Statement dataframe
+
+
 Temp_data = pd.DataFrame()
 inc_st_data = pd.DataFrame()
 
@@ -214,6 +224,10 @@ print(inc_st_data)
 inc_st_data.to_csv(r'Files\inc_st_data.csv', index=False, header=True)
 
 # Section 1.4.4 - Balance Sheet
+
+# The imported data is in a json file format. We convert the json output into a list and in-turn into a dataframe
+# and append it on to the Balance Sheet dataframe.
+# If there is no information for a particular stock nothing gets appended to the Balance Sheet dataframe
 
 Temp_data = pd.DataFrame()
 BS_data = pd.DataFrame()
@@ -243,6 +257,10 @@ BS_data.to_csv(r'Files\BS_data.csv', index=False, header=True)
 
 # Section 1.4.5 - Cash_flow
 
+# The imported data is in a json file format. We convert the json output into a list and in-turn into a dataframe
+# and append it on to the Cash Flow statement dataframe.
+# If there is no information for a particular stock nothing gets appended to the Cash Flow statement dataframe
+
 Temp_data = pd.DataFrame()
 CF_data = pd.DataFrame()
 
@@ -269,8 +287,11 @@ print(CF_data)
 # Write out the CSV
 CF_data.to_csv(r'Files\CF_data.csv', index=False, header=True)
 
-
 # Section 1.4.6 - Monthly stock prices
+
+# The imported data is in a json file format. We convert the json output into a list and in-turn into a dataframe
+# and append it on to the Monthly prices dataframe.
+
 
 upd_stock_list1 = upd_stock_list[5780:]
 print(upd_stock_list1)
