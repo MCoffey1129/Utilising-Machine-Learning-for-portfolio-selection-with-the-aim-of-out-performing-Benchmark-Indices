@@ -5,7 +5,8 @@
 #        1.1 - Import the Stock Symbols for each of the stocks which will be used in the project
 #        1.2 - Complete some initial exploratory analysis on this data
 #        1.3 - Structure the data in order to import the required Stock information from AlphaVantage
-#        1.4 - Import the data from Alpha Vantage
+#        1.4 - Import the data from Alpha Vantage (Please note I did not create a function to import these
+#              tables as there were small differences in the import process)
 ###############################################################################################################
 
 ###############################################################################################################
@@ -160,7 +161,7 @@ Overview_df.to_csv(r'Files\Overview_df.csv', index=False, header=True)
 # The imported data is in a json file format. We convert the json output into a list and in-turn into a dataframe
 # and append it on to the eps dataframe.
 # If there is no information for a particular stock nothing gets appended to the eps dataframe
-# We will only take in information from Dec '14 onwards as we only have reliabel Income Statement information
+# We will only take in information from Dec '14 onwards as we only have reliable Income Statement information
 # from Jun '16 onward (see 'AAPL')
 
 Temp_data = pd.DataFrame()

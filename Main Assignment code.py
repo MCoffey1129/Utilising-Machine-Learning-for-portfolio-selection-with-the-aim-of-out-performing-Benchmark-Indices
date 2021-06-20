@@ -1,5 +1,8 @@
 ###############################################################################################################
-# Section 2 - Exploratory data analysis
+# Section 2 - Feature Engineering
+#
+#         2.1 - Company Overview table
+#         2.2 - Financial Results table
 ###############################################################################################################
 
 
@@ -40,13 +43,12 @@ from sklearn.linear_model import LogisticRegression
 # Functions
 
 # timer decorator - to check the length of time functions have taken to run
-
 def timer(func):
     """A decorator that prints how long a function took to run."""
 
     # Define the wrapper function to return.
     def wrapper(*args, **kwargs):
-        # When wrapper() is called, get the current time.
+            # When wrapper() is called, get the current time.
         t_start = time.time()
         # Call the decorated function and store the result.
         result = func(*args, **kwargs)
@@ -61,24 +63,19 @@ def timer(func):
 # Function for returning a pandas dataframe containing unique symbols for the input table
 @timer
 def unique_column(input_table, column):
-    """A function for returning a pandas dataframe containing unique column for the input table"""
+    """A function for returning a pandas dataframe containing unique column for the input table supplied"""
     output = pd.DataFrame(input_table[column].unique(), columns=[column])
     return output
 
 
-# Create a
-@timer
-def pd_set_df_view_options(max_rows=1000, max_columns=350, display_width=320):
-    """A function used to display the requested number of rows and columns when printing the data"""
-
-    pd.set_option('display.max_rows', max_rows)
-    pd.set_option('display.max_columns', max_columns)
-
-    pd.set_option('display.width', display_width)
-
-
+# Function for plotting the closing stock price versus the future stock price (stock price 6 months later)
+# Given the large outliers (i.e. accounts with very large stock gains we have inserted a line of code to remove these
+# cases from the plot)
 @timer
 def seaborn_lm_plt(input_table, close_val, future_value):
+    """A function for plotting the closing stock price versus the future stock price"""
+
+    # Seaborn table used in the plot removes any large movements which make the plot difficult to interpret
     seaborn_tab = input_table.loc[
         (input_table['close_price'] < close_val) & (input_table['future_price'] < future_value)]
     sns.lmplot(data=seaborn_tab, x='close_price', y='future_price', hue='month', palette='deep', legend=False,
@@ -91,9 +88,11 @@ def seaborn_lm_plt(input_table, close_val, future_value):
     plt.show()
 
 
-# Handling null values
+# Function used to create a table containing the number of missing values in each column of a table
 @timer
 def null_value_pc(table):
+    """Function used to assess the number (and %) of missing values in each column of a specific table"""
+
     missing_tbl = pd.DataFrame(table.isnull().sum(), columns=['num missing'])
     missing_tbl['missing_pc'] = missing_tbl['num missing'] / table.shape[0]
     return missing_tbl
@@ -102,35 +101,36 @@ def null_value_pc(table):
 # Function used for margin calculations
 @timer
 def margin_calcs(input_num, input_den, output_col):
+    """Function used to calculate different ratios (i.e. Price to Earnings) which are used in the modelling process"""
+
+    # The ratios are calculated at the date, 1 quarter prior (3 months prior), 2 quarters prior 6 months prior
+    # and 4 quarters prior (12 months prior).
     for j in [0, 1, 2, 4]:
         if j == 0:
             mdl_input_data[output_col] = mdl_input_data[input_num] / mdl_input_data[input_den]
+            # Replace inf values with zero
             mdl_input_data[output_col].replace([np.inf, -np.inf], 0, inplace=True)
 
         else:
             mdl_input_data[output_col + '_' + str(j) + 'Q_lag'] = mdl_input_data[input_num + '_' + str(j) + 'Q_lag'] \
                                                                   / mdl_input_data[input_den + '_' + str(j) + 'Q_lag']
 
+            # We are interested in the growth rate of these ratios
             mdl_input_data[output_col + '_' + str(j) + 'Q_gth'] = (mdl_input_data[output_col]
                                                                    - mdl_input_data[
                                                                        output_col + '_' + str(j) + 'Q_lag'])
-
+            # Replace inf values with zero
             mdl_input_data[output_col + '_' + str(j) + 'Q_lag'].replace([np.inf, -np.inf], 0, inplace=True)
-
+            # Replace inf values with zero
             mdl_input_data[output_col + '_' + str(j) + 'Q_gth'].replace([np.inf, -np.inf], 0, inplace=True)
 
 
-#    plt.title("Close Price (< $" + str(close_val) + ")" + " v Future Price (< $" + str(future_value) + ")"
-#        , fontdict={'size': 16})
-
-# Function which converts a string value of "none" to missing
-# @timer
-# def string_conv(input_table):
-#     """Function which converts a string value of "none" to missing"""
-#     return input_table = inpu
 
 ###############################################################################################################
-# Section 2.1 - Exploratory data analysis
+# Section 2.1 - Company Overview
+#
+#              - We transform our company overview dataframe into a date dependent table containing each of
+#                the dates required for our model
 ###############################################################################################################
 
 
@@ -143,12 +143,15 @@ def margin_calcs(input_num, input_den, output_col):
 # Minus 55 stocks for which most (e.g. WSO/B and HVT/A are preferred stocks)                 -    55
 # Equals the total number of stocks in our Company overview file (overview_df)              =  5,919
 
-# Only use stocks for which we have information on earnings, cashflow etc. (see below)       -   837
+# Only use stocks for which we have information on earnings, balance sheet info etc.         -   837
 # Final number of stocks used in our model                                                  =  5,082
 
-pd_set_df_view_options(max_rows=1000, max_columns=350, display_width=320)
+# # Display 1000 columns as a default
+pd.set_option('display.width', 1000)
+pd.set_option('display.max_columns', 1000)
 
-# Import the CSVs into Python
+
+# Import the stock data CSVs into Python
 
 company_overview = pd.read_csv(r'Files\Overview_df.csv')
 eps_data = pd.read_csv(r'Files\eps_data.csv')
@@ -165,9 +168,9 @@ bs_symbol_unique = unique_column(bs_data, 'Symbol')
 cf_symbol_unique = unique_column(cf_data, 'Symbol')
 sp_symbol_unique = unique_column(monthly_stock_prices, 'Symbol')
 
-# We only want to keep stocks which are contained in each file, in order to achieve this we complete run an
+# We only want to keep stocks which are contained in each file, in order to achieve this we  run an
 # inner join on each of the datasets containing the unique stock symbols
-# There are 5,082 stocks which are in every file, this is what we will use going forward
+# There are 5,082 stocks which are in every file, this is the list of stocks we will use going forward
 symbols_in_all_files = \
     pd.merge(pd.merge(pd.merge(pd.merge(pd.merge(co_symbol_unique, eps_symbol_unique, how='inner', on='Symbol')
                                         , inc_st_symbol_unique, how='inner', on='Symbol')
@@ -175,17 +178,22 @@ symbols_in_all_files = \
                       , cf_symbol_unique, how='inner', on='Symbol')
              , sp_symbol_unique, how='inner', on='Symbol')
 
-symbols_in_all_files.shape  # Check complete that there are 5,082 stocks in this table
+symbols_in_all_files.shape  # Check complete - there are 5,082 stocks in this table
 
-# Update the company overview such that it will contain only the stocks which are contained in each file
+# Update the company overview such that it will contain only the stocks for which we have earnings, income and
+# balance sheet information on
 
 company_overview_upd = pd.merge(company_overview, symbols_in_all_files, how='inner', on='Symbol')
-company_overview_upd.shape  # updated file contains 5,082 stocks as expected
+company_overview_upd.shape  # Check - updated file contains 5,082 stocks as expected
 
-# Update our initial dataframe such that it is in the correct form required for modelling.
-# As the approach is a 6 month hold and sell strategy we want to get the stock information off quarter
-# so that we do not have any issues aro....
 
+# The modelling approach we are using in this assignment  is a 6 month hold and sell strategy in which we will purchase
+# the stocks at Jan and July and sell the stocks 6 months later (i.e. if we purchase the stocks at July '18 we
+# will sell these stocks at Jan '19)
+
+
+# We will create a dataframe which contains just an index of dates (which are spaced by 6 months) which start at July
+# '17 and end at Jan '20. This represents the shape required to create our model
 
 dates = ['2021-01', '2020-07', '2020-01', '2019-07', '2019-01', '2018-07', '2018-01', '2017-07']
 dates_df = pd.DataFrame(dates, columns=['dt'])
@@ -193,6 +201,9 @@ dates_df.index = pd.to_datetime(dates_df['dt']).dt.to_period('M')
 dates_df = dates_df.drop(columns=dates_df.columns[0])  # drop the second dt field
 print(dates_df)
 dates_df.columns
+
+# We transform our company overview dataframe into a date dependent table containing each of the dates required
+# for our model (essentially multiplying the rows in the table by 8)
 
 company_overview_dt = pd.DataFrame()
 
@@ -215,25 +226,28 @@ company_overview_dt.tail()
 # Section 2.2 - Financial Results data including earnings, income statement, balance sheet and cash flow statement
 ##################################################################################################################
 
-
+# Create a financial results dataset which is a merge of earnings, income statement, balance sheet and
+# Cash flow statement
 financial_results = \
     pd.merge(pd.merge(pd.merge(eps_data, inc_st_data, how='left', on=['fiscalDateEnding', 'Symbol'])
-                      , bs_data.drop(labels=['reportedCurrency'], axis=1), how='inner',
+                      , bs_data.drop(labels=['reportedCurrency'], axis=1), how='left',
                       on=['fiscalDateEnding', 'Symbol'])
              , cf_data.drop(labels=['netIncome', 'reportedCurrency'], axis=1), how='left',
              on=['fiscalDateEnding', 'Symbol'])
 
+
 financial_results.head(40)
+print(financial_results)
 
 # Initially checked the data for duplicate columns (these are flagged as _x and _y after which I re-run the
 # join removing these columns to avoid the duplication.
 
-eps_data.shape  # 7 columns
+eps_data.shape  # 7 columns (109,888 rows)
 inc_st_data.shape  # 27 columns
 bs_data.shape  # 39 columns
 cf_data.shape  # 30 columns
 financial_results.shape  # 94 columns ( 7 + 25 (27-2 columns joining on) + 36 (39-2-1(rep currency)) + 26 (30-2-2) )
-# 78,126 rows
+# 109,888 rows (equal to the number of rows in the eps_data table
 
 
 columns_df = pd.DataFrame(financial_results.columns, columns=['Columns'])
@@ -241,13 +255,12 @@ columns_df = columns_df.sort_values(by='Columns')
 print(columns_df)  # There are no longer any duplicate columns
 
 # Check
-financial_results.info()  # Every field is saved as a character field
+financial_results.info()  # Every field is saved as a character field (numeric and date fields will have to be updated)
 financial_results.describe()  # No numeric fields so the output is not useful
-financial_results.isnull().sum()  # There are a large number of nulls
+financial_results.isnull().sum()  # There are a large number of nulls in the dataset
 
-# Replace 'None' with NaN in order to convert the character fields to Numeric,
-# we will have to take another look at reportedCurrency later but for now we will convert it
-# to numeric
+# Replace 'None' with NaN. We will reorder the dataframe to keep the character and date fields to the left and the
+# numeric fields to the right, this will make data manipulation a lot easier
 financial_results = financial_results.replace('None', np.nan)
 symb_curr_df = pd.DataFrame(financial_results[['Symbol', 'reportedCurrency']])
 
@@ -256,18 +269,20 @@ financial_results_reorder = pd.concat(
     , axis=1)
 
 financial_results_reorder.info()  # reordering looks to be correct
-financial_results_reorder.shape  # No change in the number of rows (78,126) and columns 94
-# Convert the numeric fields to floats
+financial_results_reorder.shape  # No change in the number of rows (109,888) and columns (94)
 
+# Convert the numeric fields which are currently stored as character fields to floats
 financial_results_reorder.iloc[:, 4:] = \
     financial_results_reorder.iloc[:, 4:].astype(float)
 
 financial_results_reorder.info()  # Each of the numeric fields have been converted to floats
-financial_results_reorder.shape  # No change in the number of rows (78,126) and columns 94
+financial_results_reorder.shape  # No change in the number of rows (109,888) and columns (94)
 
 # Create a new column called Book_value which is equal to Assets less liabilities
 financial_results_reorder['book_value'] = financial_results_reorder['totalAssets'] \
                                           - financial_results_reorder['totalLiabilities']
+
+financial_results_reorder.shape # No extra rows added (109,888) and one extra column (95)
 
 # Convert the Date fields to dates
 financial_results_reorder['fiscalDateEnding'] = pd.to_datetime(financial_results_reorder['fiscalDateEnding']) \
@@ -275,11 +290,19 @@ financial_results_reorder['fiscalDateEnding'] = pd.to_datetime(financial_results
 
 financial_results_reorder['reportedDate'] = pd.to_datetime(financial_results_reorder['reportedDate']).dt.to_period('M')
 
-# We need to mould the data we will be looking to take in the most recent Financial information for July and Jan
-# each year. The most recent data at Jan will be the quarterly results published in Jan of the current year
-# or Dec or Nov of the previous year. Below we update the report date to accomplish the above.
 
-# If the report date is in Dec or Nov we update the reported date to be Jan of the following year
+# Similar to the transformation performed on the Company overview tables above
+# we will update the financial results table to ensure it is in the correct format
+# for our model
+
+# For the Jan row of our data we will require the most recent Financial information for Jan (the same applies for July)
+# The most recent information at Jan each year will be the quarterly results pre Jan (i.e. the most recent reported
+# EPS for symbol A at Jan '21 is the reported EPS for A on the 23rd of November 2020).
+# Below we update the report date to ensure that we bring in the most up-to-date financial information on each stock
+# ensuring that the stock information is known at that date.
+
+# If the report date is in Dec or Nov and the subsequent report date is not Jan we update the reported date
+# to be Jan of the following year
 
 financial_results_reorder.loc[((financial_results_reorder['reportedDate'].dt.month == 12)
                                | (financial_results_reorder['reportedDate'].dt.month == 11)
@@ -299,7 +322,8 @@ financial_results_reorder.loc[((financial_results_reorder['reportedDate'].dt.mon
                               & (financial_results_reorder['reportedDate'].shift(1).dt.month != 10),
                               'dt_month'] = 1
 
-# If the report date is in June or May we update the reported date to be July
+# If the report date is in Apr or May and the subsequent report date is not July we update the reported date
+# to be July for that case
 
 financial_results_reorder.loc[((financial_results_reorder['reportedDate'].dt.month == 6)
                                | (financial_results_reorder['reportedDate'].dt.month == 5)
@@ -319,26 +343,31 @@ financial_results_reorder['dt_str'] = financial_results_reorder['dt_yr'].astype(
 
 financial_results_reorder.head(40)
 
-# Create a date field called 'dt' and assign it as the index
+# Create a date field called 'dt' and assign it as the index - this date field contains up-to-date financial
+# information on each stock at Jan and Dec each year
 financial_results_reorder['dt'] = pd.to_datetime(financial_results_reorder['dt_str']).dt.to_period('M')
 financial_results_reorder.index = financial_results_reorder['dt']
 
 financial_results_reorder.head(40)
 
-financial_results_reorder.shape  # No change in the number of rows (78,126) but there are 4 extra columns (98)
+financial_results_reorder.shape  # No change in the number of rows (78,126) but there are 4 extra columns (99)
 financial_results_reorder.columns  # 4 columns which are not required, these are the last 4 columns
 
 financial_results_reorder = financial_results_reorder.drop(columns=financial_results_reorder.columns[[-1, -2, -3, -4]])
 financial_results_reorder.head(5)
-financial_results_reorder.shape  # the 4 columns have been dropped (94) and no change to the number of rows (78,126)
+financial_results_reorder.shape  # the 4 columns have been dropped (95) and no change to the number of rows (109,888)
 financial_results_reorder.columns
 
-# Get the lagged data for each of the numeric columns
-# When looking at the 6 month forecasted growth/decline of a share price we do not want to look at just the
-# revenue in the current quarter but rather the revenue growth across the year for that share
+# The purpose of the below code is to get the prior month, three month and twelve month financial information
+# on each stock.
+# For modelling purposes this will allow us to assess the growth rate impact of these financial fields on future stock
+# price movement (i.e. knowing the most recent revenue figure for Apple at July '19 might not tell us a lot about what
+# the stock price will be at Jan '20 but knowing the six month and twelve month revenue growth may give us a better
+# indication)
 
-# columns are the list of all numeric fields we want to get the 4 lagged values for
 
+# Create a list called "columns" containing the column names of all the numeric fields in the
+# financial_results_reorder dataset
 columns = list(financial_results_reorder.iloc[:, 4:].columns)
 financial_results_reorder.head()
 for i in columns:
@@ -358,15 +387,18 @@ for i in columns:
         financial_results_reorder.loc[financial_results_reorder['Symbol'].shift(-j) !=
                                       financial_results_reorder['Symbol'], i + '_' + str(j) + 'Q_gth'] = np.nan
 
-print(financial_results_reorder.loc[(financial_results_reorder['Symbol'] == 'AAIC') |
-                                    (financial_results_reorder['Symbol'] == 'A'), [
-                                        'Symbol', 'surprise', 'surprise_1Q_lag', 'surprise_2Q_lag', 'surprise_4Q_lag'
-                                        , 'surprise_1Q_gth', 'surprise_2Q_gth', 'surprise_4Q_gth']])
+
+# Check - ensure that the lag and growth calculation are correct
+print(financial_results_reorder.loc[(financial_results_reorder['Symbol'] == 'AG') |
+                                    (financial_results_reorder['Symbol'] == 'STC'), [
+                                    'Symbol', 'totalRevenue', 'totalRevenue_1Q_lag', 'totalRevenue_2Q_lag',
+                                    'totalRevenue_4Q_lag', 'totalRevenue_1Q_gth', 'totalRevenue_2Q_gth',
+                                    'totalRevenue_4Q_gth']])
 
 financial_results_reorder.head(30)
-print(financial_results_reorder.loc[financial_results_reorder['Symbol'] == 'ZNTL'])  # Calculation looks correct
-financial_results_reorder.shape  # Number of rows are unchanged at 78,126 but we now have 454 columns
-# The number of columns equals 90 (the number of numeric columns) * 5 (4 lagged periods) + 4 (character fields) = 454
+financial_results_reorder.shape  # Number of rows are unchanged at 109,888 but we now have 641 columns
+# The number of columns equals 91 (the number of numeric columns) * 7 (3 lagged fields and 3 growth fields)
+#  + 4 (character fields) = 641
 
 # We only have 8 timeframes which we are modelling on so we can delete all other time points
 # These timepooints are saved in the dates_df
@@ -375,31 +407,35 @@ financial_results_reorder.head(20)
 financial_results_reorder.tail(20)
 
 financial_results_reorder.index.unique()  # 8 unique timepoints as expected
-financial_results_reorder.shape  # the number of columns are unchanged at 454 as expected
-# the number of rows have decreased to 31,399
+financial_results_reorder.shape  # the number of columns are unchanged at 641 as expected
+# the number of rows have decreased to 35,564
 
 
 ##################################################################################################################
 # Section 2.3 - Bring in the monthly stock prices
 ##################################################################################################################
 
+# Check the top 20 entries in the table
+# The only two columns we are interested in is "dt" and "5. adjusted close"
 monthly_stock_prices.head(20)
+monthly_stock_prices.info()
 
+# Convert the "dt" field into a date type (similar to the other two tables)
 monthly_stock_prices['dt_m'] = pd.to_datetime(monthly_stock_prices['dt'], format="%d/%m/%Y").dt.to_period('M')
 
+# Create a new column called "close_price" and leave it equal to "5. adjusted close".
 monthly_stock_prices['close_price'] = monthly_stock_prices["5. adjusted close"].astype(float)
 stock_prices = monthly_stock_prices[['dt', 'dt_m', 'Symbol', 'close_price']]
 stk_prices = copy.deepcopy(stock_prices)
 
 print(stk_prices)
 
-# Create a month column as we will need to decipher whether investing for 6 months in Jan or at July is more
-# profitable
+# Create a month column which represents the month we invest in our portfolio
 stk_prices['month'] = stk_prices['dt_m'].dt.month
 stk_prices['month'] = stk_prices['month'].apply(lambda x: calendar.month_abbr[x])
 print(stk_prices)
 
-# columns = ['close_price']
+
 
 for j in [1, 3, 6, 12, -5, -6]:
     # Get the historic and future stock prices growths
