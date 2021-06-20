@@ -3,6 +3,7 @@
 #
 #         2.1 - Company Overview table
 #         2.2 - Financial Results table
+#         2.3 - Monthly Stock Prices
 ###############################################################################################################
 
 
@@ -124,6 +125,19 @@ def margin_calcs(input_num, input_den, output_col):
             # Replace inf values with zero
             mdl_input_data[output_col + '_' + str(j) + 'Q_gth'].replace([np.inf, -np.inf], 0, inplace=True)
 
+#Function for dropping rows
+@timer
+def drop_row(tbl,lst):
+    """Function used to delete rows in a table (tbl) when a column within the list are NULL"""
+    output = tbl.dropna(subset=lst, how='any')
+    return output
+
+#Function for dropping columns
+@timer
+def drop_column(tbl,lst):
+    """Function used to drop columns in a table """
+    output = tbl.drop(lst, axis=1)
+    return output
 
 
 ###############################################################################################################
@@ -408,7 +422,7 @@ financial_results_reorder.tail(20)
 
 financial_results_reorder.index.unique()  # 8 unique timepoints as expected
 financial_results_reorder.shape  # the number of columns are unchanged at 641 as expected
-# the number of rows have decreased to 35,564
+# the number of rows has decreased to 35,564
 
 
 ##################################################################################################################
@@ -436,7 +450,10 @@ stk_prices['month'] = stk_prices['month'].apply(lambda x: calendar.month_abbr[x]
 print(stk_prices)
 
 
-
+# for loop which generates the one month three month, six month and twelve month lag share price
+# as well as the five and six month future share price
+# The future share price will be our modelled future price and the lagged share prices will be used to
+# asses the relationship between historic share price growths and future share price movement
 for j in [1, 3, 6, 12, -5, -6]:
     # Get the historic and future stock prices growths
     if j >= 0:
@@ -457,17 +474,19 @@ print(stk_prices)
 stk_prices.info()
 
 # Checks
-stk_prices[['dt', 'dt_m', 'Symbol', 'close_price', 'close_price_-5M_lag', 'close_price_-6M_lag']].tail(100)
+stk_prices[['dt', 'dt_m', 'Symbol', 'close_price', 'close_price_1M_lag', 'close_price_3M_lag', 'close_price_12M_lag'
+    ,'close_price_-5M_lag','close_price_-6M_lag']].tail(25) # Calculation is correct
 stk_prices.columns
 stk_prices.describe()  # There are no negative stock prices but the max stock price looks very high
 
 chk_tbl = stk_prices.sort_values(by=['close_price'], ascending=False)
-chk_tbl.head(10)  # I will take the 10 largest values and check the values on yahoo finance
-# The values look correct as per Yahoo finance
+chk_tbl.head(10)  # The values look correct when checked against Yahoo finance for the timepoint
 
 
 # Create the forecasted stock price - please note we have only 5 months of forecasted stock information
-# for trades made in Jan '21
+# for trades made in Jan '21 so the future stock price at that date will be 5 months in the future
+# We create the target variable for our model, "gt_10pc_gth" which is 1 if the stock price increased by 10%
+# in the 6 months and 0 if the stock price did not.
 stk_prices.loc[stk_prices['dt_m'] == '2021-01', 'future_price'] = stk_prices['close_price_-5M_lag']
 stk_prices.loc[stk_prices['dt_m'] != '2021-01', 'future_price'] = stk_prices['close_price_-6M_lag']
 stk_prices.loc[stk_prices['dt_m'] == '2021-01', 'future_price_gth'] = stk_prices['close_price_-5M_gth']
@@ -481,7 +500,7 @@ stk_prices.drop("dt", inplace=True, axis=1)
 stk_prices.index = stk_prices['dt_m'].rename("dt")
 stk_prices.head(25)
 stk_prices.columns
-stk_prices['gt_10pc_gth'].value_counts()
+stk_prices['gt_10pc_gth'].value_counts() # 38% of cases increased by 10% in the 6 months (a small class imbalance)
 
 # Drop unneeded columns
 stk_prices = stk_prices.drop(['dt_m', 'close_price_-5M_gth', 'close_price_-6M_gth',
@@ -497,14 +516,13 @@ stk_prices.head(20)
 
 # Plot the close price against the forecasted price (6 months later)
 # Looking at the plots possibly investing in stocks at July for a 6 month period is more
-# profitable than investing in Jan. Obviously we will have to fit all of the data to see if the date of investing
-# is statistically significant
+# profitable than investing in Jan.
 
 # function(table,close_price to be lower than, future price to be lower than)
 # seaborn_lm_plt(stk_prices, 10, 50)  # cases which have a price of less than $10 and a future price less than $50
 # seaborn_lm_plt(stk_prices, 100, 500)
 # seaborn_lm_plt(stk_prices, 5, 20)
-# seaborn_lm_plt(stk_prices, 5, 1000000)  # Outlier is Gamestop share increase from July '20 to Jan '21
+# seaborn_lm_plt(stk_prices, 5, 1000000)  # Some large stock price increases make it difficult to see the overall impact
 
 
 # Code for checking the stocks with the largest 6 month gains on companies who had a share price of less than 5 euro
@@ -516,7 +534,7 @@ b['diff'] = b['future_price'] - b['close_price']
 print(b.sort_values(by=['diff'], ascending=False))
 
 ##################################################################################################################
-# Section 3.1 - Finalise the data required
+# Section 2.4 - Creation of new modelled features
 ##################################################################################################################
 
 # Join the three tables together by index
@@ -530,13 +548,14 @@ mdl_data = \
              , stk_prices, how='left', on=['dt', 'Symbol'])
 
 company_overview_dt.shape  # 40,656 rows and 8 columns
-financial_results_reorder.shape  # 31,399 rows and 454 columns
-stk_prices.shape  # 38,078 rows and 13 columns
-mdl_data.shape  # 40,656 rows and 473 columns (454 + 8 + 13 - 2 (Symbol which we are joining on))
+financial_results_reorder.shape  # 35,564 rows and 641 columns
+stk_prices.shape  # 38,078 rows and 14 columns
+mdl_data.shape  # 40,656 rows and 661 columns (641 + 8 + 14 - 2 (Symbol which we are joining on))
 
+# Create a new table which is a copy of mdl_data
 mdl_input_data = mdl_data
 
-# Create a market cap column
+# Create a market cap column (including lagged values)
 mdl_input_data['market_cap'] = mdl_input_data['commonStockSharesOutstanding'] * mdl_input_data['close_price']
 mdl_input_data['market_cap_1Q_lag'] = mdl_input_data['commonStockSharesOutstanding_1Q_lag'] \
                                       * mdl_input_data['close_price_3M_lag']
@@ -562,7 +581,7 @@ mdl_input_data['EV_simple_4Q_lag'] = mdl_input_data['market_cap_4Q_lag'].fillna(
                                      + mdl_input_data['operatingCashflow_4Q_lag'].fillna(0) \
                                      - mdl_input_data['capitalExpenditures_4Q_lag'].fillna(0)
 
-mdl_input_data.loc[mdl_input_data['Symbol'] == 'APLT', 'EV_simple']
+
 # Create new features required for modelling i.e. P/E, gross margin, net margin etc.
 
 # Profitability metrics
@@ -604,6 +623,10 @@ margin_calcs('dividendPayoutCommonStock', 'commonStockSharesOutstanding', 'div_y
 # Inventory issues
 margin_calcs('inventory', 'costofGoodsAndServicesSold', 'inv_ratio')
 
+
+# Compare the key ratios against the industry average for that time point
+
+# Create the industry average ratios
 industry_avg = mdl_input_data[['Industry', 'p_to_e', 'p_to_b', 'p_to_r', 'ev_to_e', 'ev_to_b', 'ev_to_r',
                                'div_yield', 'debt_to_equity', 'p_to_op_cf', 'ev_to_op_cf', 'p_to_ebitda',
                                'ev_to_ebitda',
@@ -614,19 +637,22 @@ industry_avg = mdl_input_data[['Industry', 'p_to_e', 'p_to_b', 'p_to_r', 'ev_to_
 industry_avg_rename = industry_avg.rename(columns=lambda s: s + '_ind_avg')
 print(industry_avg_rename)
 
+# Join the industry averages on to the overall dataset
 mdl_input_data_upd = pd.merge(mdl_input_data, industry_avg_rename, how='left', on=['dt', 'Industry'])
 
+# Create a field which compares the stock's ratios against the industry average
+# Drop the industry average field.
 for col1 in list(industry_avg):
     mdl_input_data_upd[col1 + '_v_ind_avg'] = mdl_input_data_upd[col1] - mdl_input_data_upd[col1 + '_ind_avg']
     mdl_input_data_upd.drop([col1 + '_ind_avg'], axis=1, inplace=True)
 
-'surprisePercentage_v_ind_avg'
 
-# sns.boxplot(data=mdl_input_data_upd, x='gt_10pc_gth', y='surprisePercentage_v_ind_avg', whis=10)
+# Boxplot which can be used to view the population of a variable which had a share price growth of greater than
+# 10% versus the population that did not
+# sns.boxplot(data=mdl_input_data_upd, x='gt_10pc_gth', y='ebitda_margin_v_ind_avg', whis=10)
 # plt.yscale('log')
 # plt.show()
 
-mdl_input_data_upd[['p_to_r_v_ind_avg', 'gt_10pc_gth']].groupby(by=['gt_10pc_gth']).mean()
 
 # Checks
 print(mdl_input_data_upd.loc[
@@ -646,42 +672,45 @@ ds = mdl_input_data[mdl_input_data_upd.isin([np.inf, -np.inf])].sum()
 print(ds)
 
 ##################################################################################################################
-# Section 3.2 - Replacing nulls and Feature Selection
+# Section 3 - Data Preparation
 ##################################################################################################################
 
-
-# Split the data into train and test in order to prevent data leakage. Any decision made around dropping columns
-# or replacing nulls needs to be completed assuming we have no information on the test set
+# Split the data into train, test and deploy datasets in order to prevent data leakage.
+# Any decision made around dropping columns or replacing nulls needs to be completed assuming we have
+# no information on the test or deploy dataset
 mdl_data_test = mdl_input_data_upd[mdl_input_data_upd.index == '2020-07']
 mdl_data_train = mdl_input_data_upd[mdl_input_data_upd.index < '2020-07']
 mdl_deploy = mdl_input_data_upd[mdl_input_data_upd.index == '2021-01']
 
-# Drop any rows where fiscalDateEnding is null (we will have no revenue or profit information for these rows)
+
+# Drop any rows where fiscalDateEnding, Net Income, revenue or where the target value is NULL, drop these rows in
+# each of the datasets
+drop_list = ['fiscalDateEnding', 'totalRevenue', 'netIncome', 'gt_10pc_gth']
+mdl_data_train = drop_row(mdl_data_train, drop_list)
+mdl_data_test = drop_row(mdl_data_test, drop_list)
+mdl_deploy = drop_row(mdl_deploy, drop_list)
+
+
+# Check the Null values in the train dataset
 null_value_pc(mdl_data_train)
-mdl_data_train = mdl_data_train.dropna(how='all', subset=['fiscalDateEnding'])
-mdl_data_test = mdl_data_test.dropna(how='all', subset=['fiscalDateEnding'])
 
-# Drop any rows where totalRevenue is Null
-null_value_pc(mdl_data_train)
-mdl_data_train = mdl_data_train.dropna(how='all', subset=['totalRevenue'])
-mdl_data_test = mdl_data_test.dropna(how='all', subset=['totalRevenue'])
 
-# Drop any rows where grossProfit is Null
-null_value_pc(mdl_data_train)
-mdl_data_train = mdl_data_train.dropna(how='all', subset=['grossProfit'])
-mdl_data_test = mdl_data_test.dropna(how='all', subset=['grossProfit'])
+# Drop the reportedCurrency column
+drop_col = ['reportedCurrency', 'fiscalDateEnding', 'reportedDate']
+mdl_data_train = drop_column(mdl_data_train, drop_col)
+mdl_data_test = drop_column(mdl_data_test, drop_col)
+mdl_deploy = drop_column(mdl_deploy, drop_col)
 
-# Drop any rows which do not contain the target variable. Drop these cases from both test and Live
-mdl_data_train = mdl_data_train.dropna(how='all', subset=['gt_10pc_gth'])
-mdl_data_test = mdl_data_test.dropna(how='all', subset=['gt_10pc_gth'])
-
-mdl_data_train = mdl_data_train.drop('reportedCurrency', axis=1)
-mdl_data_test = mdl_data_test.drop('reportedCurrency', axis=1)
+mdl_data_train.shape
 
 # Remaining null values
 null_df = null_value_pc(mdl_data_train)  # there are a large number of Null values to deal with in all but 6 columns
 null_df = null_df.sort_values(by='missing_pc')
 print(null_df)
+
+
+# The below section assess the correlation between the numeric feature columns and the target columns in the training
+# data only
 
 # Numeric fields
 mdl_train_numeric = mdl_data_train.iloc[:, 10:]
@@ -716,6 +745,15 @@ print(corr_df_nulls.sort_values(by='Correlation'))
 # Dataframe containing each of the correlations
 all_corrs = mdl_train_numeric.corr()
 
+# Pairplots give a visual representation of the correlation between the feature variables
+# sns.pairplot(mdl_data_train.iloc[:, 10:14].fillna(0))
+
+
+# After reviewing the above there is a high degree of correlation within a number of our feature variables, there is
+# also a number of feature variables which have a very low correlation with the target variable. The columns which
+# have a high correlation with the target variable are features we engineered.
+# We will assess what columns we should drop from the dataset later in the code
+
 # Sector
 mdl_data_train['Sector'].unique()  # nan and 'None' in the column
 mdl_data_train['Sector'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
@@ -727,31 +765,45 @@ mdl_data_test['Sector'].replace(to_replace=[np.nan, 'None'], value=['Unknown', '
 mdl_data_test['Sector'].unique()  # no nan or 'None' values in the column
 mdl_data_test['Sector'].isnull().sum()  # 0 value returned
 
+mdl_deploy['Sector'].unique()  # nan and 'None' in the column
+mdl_deploy['Sector'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
+mdl_deploy['Sector'].unique()  # no nan or 'None' values in the column
+mdl_deploy['Sector'].isnull().sum()  # 0 value returned
+
 # Industry
-mdl_data_train['Industry'].isnull().sum()  # 7 missing values
+mdl_data_train['Industry'].isnull().sum()  # 45 missing values
 mdl_data_train['Industry'].unique()  # 'None' values in the column
 mdl_data_train['Industry'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
 mdl_data_train['Industry'].unique()  # no 'None' values in the column
 mdl_data_train['Industry'].isnull().sum()  # 0 value returned
 
-mdl_data_test['Industry'].isnull().sum()  # 4 missing values
+mdl_data_test['Industry'].isnull().sum()  # 13 missing values
 mdl_data_test['Industry'].unique()  # 'None' values in the column
 mdl_data_test['Industry'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
 mdl_data_test['Industry'].unique()  # no 'None' values in the column
 mdl_data_test['Industry'].isnull().sum()  # 0 value returned
 
+mdl_deploy['Industry'].isnull().sum()  # 13 missing values
+mdl_deploy['Industry'].unique()  # 'None' values in the column
+mdl_deploy['Industry'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
+mdl_deploy['Industry'].unique()  # no 'None' values in the column
+mdl_deploy['Industry'].isnull().sum()  # 0 value returned
+
 null_value_pc(mdl_data_train)  # Sector and industry no longer have missing values
 
 # We need to drop the 'future_price' and 'future_price_gth' from our model
 future_test_pc_df = mdl_data_test[['future_price_gth']]
-mdl_data_train.drop(['future_price', 'future_price_gth', 'fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
-mdl_data_test.drop(['future_price', 'future_price_gth', 'fiscalDateEnding', 'reportedDate'], axis=1, inplace=True)
+future_deploy_pc_df = mdl_deploy[['future_price_gth']]
+
+drop_col = ['future_price_gth', 'future_price']
+mdl_data_train = drop_column(mdl_data_train, drop_col)
+mdl_data_test = drop_column(mdl_data_test, drop_col)
+mdl_deploy = drop_column(mdl_deploy, drop_col)
 
 mdl_data_train.shape
 future_test_pc_df.head()
 
 ##
-
 
 # Assess the character variables
 print(pd.DataFrame(mdl_data_train.dtypes, columns=['datatype']).sort_values('datatype'))
@@ -759,12 +811,12 @@ mdl_data_train.info()
 # useful for putting all of the character fields at the bottom of the print.
 
 # There are 9 character fields before we get dummy values for these fields we need to look into them:
-#    - Symbol has 4,566 unique values and Name has 4,397 unique values, we will drop these features as otherwise we will
+#    - Symbol has 4,754 unique values and Name has 4,577 unique values, we will drop these features as otherwise we will
 #      be modelling at too low a level
 #    - Asset type, currency and country all only have one unique value and as such are redundant to the model
-#    - exchange(2) and month (2) will be included in the model
+#    - Exchange(2) and month (2) will be included in the model
 #    - We will investigate if Industry (148) should be included or if Sector (13) gives us enough information
-#    - about the company
+#    - about the stock
 
 char_columns = ['Symbol', 'AssetType', 'Name', 'month', 'Exchange', 'Currency', 'Country', 'Sector', 'Industry']
 unique_vals = []
@@ -774,69 +826,66 @@ for entry in char_columns:
 
 print(unique_vals)
 
-# Without doing any statistical tests we can see that there is clearly large differences between different industries
+# The variability in the average return within a Sector is high.
 # We will drop sector from our model and keep Industry
 mdl_data_train[['Sector', 'Industry', 'gt_10pc_gth']].groupby(by=['Sector', 'Industry']).mean()
 
 # Drop the required columns in a new dataframe called "model_input_data"
 symbol_test_df = mdl_data_test[['Symbol']]
+symbol_deploy_df = mdl_deploy[['Symbol']]
+
 mdl_data_train = mdl_data_train.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
 mdl_data_test = mdl_data_test.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
+mdl_deploy = mdl_deploy.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
 
 print(pd.DataFrame(mdl_data_train.dtypes, columns=['datatype']).sort_values('datatype'))  # 3 character fields remaining
 
-# Replace all other missing values with 0
 # Revenue, gross profit and other values which were null had very few nulls......
-null_value_pc(mdl_data_train)
+a= null_value_pc(mdl_data_train)
 
-# mdl_data_train.fillna(0, inplace=True)
-# mdl_data_test.fillna(0, inplace=True)
-# mdl_data_train.isnull().sum()  # no missing values
-# mdl_data_test.isnull().sum()  # no missing values
-# mdl_data_train.describe()
-
-# mdl_data_train['gt_10pc_gth'] = mdl_data_train['gt_10pc_gth'].astype(int)
-# mdl_data_test['gt_10pc_gth'] = mdl_data_test['gt_10pc_gth'].astype(int)
-
-mdl_data_test.info()
-
+a.to_csv(r'Files\a.csv', index=True, header=True)
 ##################################################################################################################
 # Section 4 - Modelling
 ##################################################################################################################
 
-# The features which we would expect to be important in predicting share price
-# are P/E growth, net margin growth, P/B growth etc. so we would expect that the important features which
-# will come out of a first "very rough" run of the model will be revenue, net profit, market cap etc.
 
-# Please note I first tried a simpler version of the model containing only balance sheet and income statment
-# information and the R squared was only 1.5%, test set had a negative R squared
-# The original random forest model had an R squared of 1.3% where most of the test scores were actually negative
-#
+# Create the feature variable dataframes X and the target y
 
 X_train_df = mdl_data_train.drop(['gt_10pc_gth', 'month'], axis=1)
 X_train_df = pd.get_dummies(data=X_train_df, drop_first=True)
 y_train_df = mdl_data_train['gt_10pc_gth']
+
 X_test_df = mdl_data_test.drop(['gt_10pc_gth'], axis=1)
 X_test_df = pd.get_dummies(data=X_test_df, drop_first=True)
 X_test_df = X_test_df.drop(['Industry_Oil & Gas Pipelines'], axis=1)
 y_test_df = mdl_data_test['gt_10pc_gth']
 
+X_deploy_df = mdl_deploy.drop(['gt_10pc_gth'], axis=1)
+X_deploy_df = pd.get_dummies(data=X_deploy_df, drop_first=True)
+y_deploy_df = mdl_deploy['gt_10pc_gth']
+
+
 X_train_df.shape
 X_test_df.shape
+X_deploy_df.shape
 y_train_df.shape
 y_test_df.shape
+y_deploy_df.shape
 
-##
-# y_train_df.to_csv(r'Files\y_train_df.csv', index=True, header=True)
+# Convert the dataframes to a numpy array
 
 X_train = X_train_df.values
 y_train = y_train_df.values
 X_test = X_test_df.values
 y_test = y_test_df.values
+X_deploy = X_deploy_df.values
+y_deploy = y_deploy_df.values
 
+#Reshape the target variables
 y_train = y_train.reshape(len(y_train),
                           1)  # For feature scaling you need a 2D array as this is what the StandardScaler expects
 y_test = y_test.reshape(len(y_test), 1)
+y_deploy = y_deploy.reshape(len(y_test), 1)
 print(y_train)
 
 # Feature Scaling
@@ -844,14 +893,17 @@ print(y_train)
 # Scaling is necessary for feature selection and modelling
 sc_X_train = MinMaxScaler()
 sc_X_test = MinMaxScaler()
+sc_X_deploy = MinMaxScaler()
 X_train = sc_X_train.fit_transform(X_train)
 X_test = sc_X_test.fit_transform(X_test)
+X_deploy = sc_X_test.fit_transform(X_deploy)
 
 # Impute missing values
 # from sklearn.impute import KNNImputer
 # imputer = KNNImputer(n_neighbors=5, weights = "uniform")
 # X_train = imputer.fit_transform(X_train)
 # X_test = imputer.fit_transform(X_test)
+# X_deploy = imputer.fit_transform(X_deploy)
 
 # Univariate Feature selection
 
@@ -1175,13 +1227,13 @@ ann_1 = tf.keras.models.Sequential()
 # Adding the input layer and the first hidden layer
 # The first hidden layer contains 6 nodes from the Dense class and the activation function is the rectifier function
 # Activation = max(x,0) (which is 0 for negative values and then increase linearly until 1)
-ann_1.add(tf.keras.layers.Dense(units=10, activation='relu'))
+ann_1.add(tf.keras.layers.Dense(units=20, activation='relu'))
 
 # Adding the second hidden layer
 # The second hidden layer contains 6 nodes and the activation function is the rectifier function
 # Activation = max(x,0) (which is 0 for negative values and then increase linearly until 1)
-ann_1.add(tf.keras.layers.Dense(units=10, activation='relu'))
-ann_1.add(tf.keras.layers.Dense(units=10, activation='relu'))
+ann_1.add(tf.keras.layers.Dense(units=20, activation='relu'))
+ann_1.add(tf.keras.layers.Dense(units=20, activation='relu'))
 
 # Adding the output layer
 # The output layer contains 1 node and the activation function is the sigmoid function
@@ -1197,7 +1249,7 @@ ann_1.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
 # For binary outcomes we always have to use binary_crossentropy and for non-binary is categorical_crossentropy
 # For metrics we can put in 'mse', 'mae', 'mape', 'cosine' (for numeric output node you would also
 # change loss to 'mse'
-ann_1.compile(optimizer='adam', loss='binary_crossentropy', metrics=[tf.keras.metrics.Precision()])
+ann_1.compile(optimizer='adam', loss='binary_crossentropy', metrics=['f1score'])
 
 # Training the ANN on the Training set
 # We are doing batch learning, a good rule of thumb is to use 32
