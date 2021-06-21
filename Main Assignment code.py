@@ -40,6 +40,7 @@ from sklearn.feature_selection import chi2
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 import keras.backend as K
+from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 
 
 # Functions
@@ -848,8 +849,8 @@ a.to_csv(r'Files\a.csv', index=True, header=True)
 # Section 3.2 - Removing Nulls
 ##################################################################################################################
 
-a= pd.DataFrame(X_train_df.columns)
-
+# a= pd.DataFrame(X_train_df.columns)
+# a.to_csv(r'Files\a.csv', index=False, header=True)
 # Create the feature variable dataframes X and the target y
 
 X_train_df = mdl_data_train.drop(['gt_10pc_gth', 'month'], axis=1)
@@ -953,6 +954,8 @@ X_train_rv = X_train_rv_df.values
 y_train_rv = y_train_rv_df.values.ravel()
 X_test_rv = X_test_rv_df.values
 y_test_rv = y_test_rv_df.values.ravel()
+X_deploy_rv = X_deploy_rv_df.values
+y_deploy_rv = y_deploy_rv_df.values.ravel()
 
 y_test_rv.shape
 
@@ -970,18 +973,18 @@ y_test_rv.shape
 ##
 
 # Recursive feature elimination
-# from sklearn.feature_selection import RFECV
-# rfecv= RFECV(estimator=RandomForestClassifier(), step=100, cv=5, scoring='precision')
-# rfecv= rfecv.fit(X_train_rv, y_train_rv)
-# print('Optimal number of features : ' , rfecv.n_features_)
-# print('Best features :' , X_train_df.columns[rfecv.support_])
+from sklearn.feature_selection import RFECV
+rfecv= RFECV(estimator=RandomForestClassifier(), step=100, cv=5, scoring='f1')
+rfecv= rfecv.fit(X_train_rv, y_train_rv)
+print('Optimal number of features : ' , rfecv.n_features_)
+print('Best features :' , X_train_df.columns[rfecv.support_])
 #
 #
-# plt.figure()
-# plt.xlabel("No of features selected")
-# plt.ylabel("Cross Validation score")
-# plt.plot(range(1,len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
-# plt.show()
+plt.figure()
+plt.xlabel("No of features selected")
+plt.ylabel("Cross Validation score")
+plt.plot(range(1,len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
+plt.show()
 
 
 
@@ -1009,12 +1012,12 @@ model_params = {
                             'params': {'learning_rate': [0.1,0.3,0.5], 'max_depth': [3,6,9],
                                        'gamma' : [0,1,5]}},
 
-    'CatBoost': {'model': CatBoostClassifier(),
+    'CatBoost': {'model': CatBoostClassifier(random_seed=1),
                  'params': {'learning_rate': [0.3, 0.1, 0.03], 'depth': [6, 3, 1],
                             'iterations': [20, 50, 200]}},
 
     'random_forest': {'model': RandomForestClassifier(criterion='entropy', random_state=1),
-                      'params': {'n_estimators': [200, 500, 1000], 'max_features': ['auto', 'log2'],
+                      'params': {'n_estimators': [5,50, 100,200, 500, 1000], 'max_features': ['auto', 'log2'],
                                  'min_samples_leaf': [1,2, 4], 'min_samples_split': [ 2, 5, 10]}},
 
     'knn': {'model': KNeighborsClassifier(algorithm='kd_tree'),
@@ -1047,18 +1050,12 @@ for model_name, mp in model_params.items():
 
 print(scores)
 
-[{'model': 'XGB', 'best_score': 0.289015814385001, 'best_params': {'gamma': 5, 'learning_rate': 0.5, 'max_depth': 6}},
- {'model': 'CatBoost', 'best_score': 0.2622480417862384, 'best_params': {'depth': 6, 'iterations': 200, 'learning_rate': 0.3}},
- {'model': 'random_forest', 'best_score': 0.08147775996676113, 'best_params': {'max_features': 'sqrt', 'min_samples_leaf': 1, 'min_samples_split': 5, 'n_estimators': 200}}, {'model': 'knn', 'best_score': 0.27599120047329584, 'best_params': {'n_neighbors': 5}}]
+# [{'model': 'XGB', 'best_score': 0.289015814385001, 'best_params': {'gamma': 5, 'learning_rate': 0.5, 'max_depth': 6}},
+#  {'model': 'CatBoost', 'best_score': 0.2622480417862384, 'best_params': {'depth': 6, 'iterations': 200, 'learning_rate': 0.3}},
+# {'model': 'random_forest', 'best_score': 0.08147775996676113, 'best_params': {'max_features': 'sqrt', 'min_samples_leaf': 1, 'min_samples_split': 5, 'n_estimators': 200}}
+# {'model': 'knn', 'best_score': 0.27599120047329584, 'best_params': {'n_neighbors': 5}}]
 
 
-
-# {'model': 'XGB', 'best_score': 0.6819904119609328, 'best_params': {'gamma': 0, 'learning_rate': 0.1, 'max_depth': 3}}
-# {'model': 'CatBoost', 'best_score': 0.6898170977764819,
-# 'best_params': {'depth': 3, 'iterations': 50, 'learning_rate': 0.03}}
-# {'model': 'random_forest', 'best_score': 0.6899512159420447,
-# 'best_params': {'max_features': 'log2', 'min_samples_leaf': 4, 'min_samples_split': 10, 'n_estimators': 1000}}
-# {'model': 'knn', 'best_score': 0.6886543070788076, 'best_params': {'n_neighbors': 100}}
 
 print(all_scores)
 
@@ -1069,8 +1066,18 @@ print(scores_df)
 # Section 4.2 - Random forest model with the best hyperparameters
 #################################################################################################################
 
+# We want to do 3 things:
+#   (i) - maximise the precision of the model (remember we are looking to purchase stocks so we want to ensure
+#         that the)
+#   (ii) - The F1 score from the hyperparameter tuning needs to be reasonable
+#   (iii) - Keep it simple, for now we will go with a RandomForestClassifier with n_estimators of 5 (as I am
+#           running out of time.
 
-rf_cf = RandomForestClassifier(criterion='entropy', n_estimators = 200, random_state=1)
+
+# rf_cf = RandomForestClassifier(criterion='entropy', n_estimators = 5,random_state=1)
+# rf_cf = KNeighborsClassifier(algorithm='kd_tree', n_neighbors=5, random_state=1)
+rf_cf = CatBoostClassifier()
+rf_cf = XGBClassifier(scale_pos_weight=0.5)
 
  #   (criterion='entropy', random_state=1, max_features = 'sqrt', min_samples_leaf= 1, \
                            #   min_samples_split= 5, n_estimators = 200)
@@ -1078,15 +1085,19 @@ rf_cf = RandomForestClassifier(criterion='entropy', n_estimators = 200, random_s
 
 rf_cf.fit(X_train_rv, y_train_rv)
 
-from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
+
 
 y_rf_pred = rf_cf.predict(X_test_rv)
-cm_rf = confusion_matrix(y_rf_pred, y_test_rv )
+cm_rf = confusion_matrix(y_test_rv,y_rf_pred )
 print(cm_rf)
 print(classification_report(y_test_rv, y_rf_pred))
 accuracy_score(y_test_rv, y_rf_pred)
 
-
+y_rf_pred = rf_cf.predict(X_deploy_rv)
+cm_rf = confusion_matrix(y_deploy_rv,y_rf_pred )
+print(cm_rf)
+print(classification_report(y_deploy_rv, y_rf_pred))
+accuracy_score(y_deploy_rv, y_rf_pred)
 
 #################################################################################################################
 # Section 4.3 - Stacking the models with the best hyperparameters
