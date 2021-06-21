@@ -845,9 +845,10 @@ a= null_value_pc(mdl_data_train)
 
 a.to_csv(r'Files\a.csv', index=True, header=True)
 ##################################################################################################################
-# Section 4 - Modelling
+# Section 3.2 - Removing Nulls
 ##################################################################################################################
 
+a= pd.DataFrame(X_train_df.columns)
 
 # Create the feature variable dataframes X and the target y
 
@@ -953,6 +954,8 @@ y_train_rv = y_train_rv_df.values.ravel()
 X_test_rv = X_test_rv_df.values
 y_test_rv = y_test_rv_df.values.ravel()
 
+y_test_rv.shape
+
 
 # Univariate Feature selection
 # select_feature = SelectKBest(chi2, k=1000).fit(X_train, y_train)
@@ -983,34 +986,24 @@ y_test_rv = y_test_rv_df.values.ravel()
 
 
 
-# classifier = KNeighborsClassifier(n_neighbors=5, metric='minkowski', p=2)
-#classifier = RandomForestClassifier(n_estimators = 10)
-# classifier = LogisticRegression(C=5,max_iter=1000)
-# classifier = LogisticRegression(C=1, max_iter=1000, random_state=1)
 
-# classifier.fit(X_train_rv, y_train_rv)
-#
-# from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
-#
-# y_pred_train = classifier.predict(X_train_rv)
-# cm = confusion_matrix(y_train_rv, y_pred_train)
-# print(cm)
-#
-# y_pred = classifier.predict(X_test_rv)
-# cm = confusion_matrix(y_test_rv, y_pred)
-# print(cm)  # only 1 incorrect prediction
-# print(classification_report(y_test_rv, y_pred))
-
-# Random Forest
-# Run a random forest to check what are the most important features in predicting future stock prices
 
 
 #################################################################################################################
-# Section 0 - Grid Search to find the best hyperparameters to use
+# Section 4 - Modelling
+#         4.1 - Grid Search to find the best hyperparameters to use for RF, KNN, XGBoost and CatBoost
+#         4.2 - Random Forest
+#         4.3 - Stacked Model
+#         4.4 - XGBoost and CatBoost
+#         4.5 - Neural Networks
+#         4.5 - Min Drawdown and Max Sharpe Ratio
 #################################################################################################################
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 
+# Model Parameters run through the GridSearch CV
+# Please note with more processing power and less of a time constraint I would be looking to run more parameters
+# through the Grid across 10 cross validations rather than 5
 model_params = {
     'XGB': {'model': XGBClassifier(),
                             'params': {'learning_rate': [0.1,0.3,0.5], 'max_depth': [3,6,9],
@@ -1021,7 +1014,7 @@ model_params = {
                             'iterations': [20, 50, 200]}},
 
     'random_forest': {'model': RandomForestClassifier(criterion='entropy', random_state=1),
-                      'params': {'n_estimators': [200, 500, 1000], 'max_features': ['sqrt', 'log2'],
+                      'params': {'n_estimators': [200, 500, 1000], 'max_features': ['auto', 'log2'],
                                  'min_samples_leaf': [1,2, 4], 'min_samples_split': [ 2, 5, 10]}},
 
     'knn': {'model': KNeighborsClassifier(algorithm='kd_tree'),
@@ -1029,17 +1022,15 @@ model_params = {
             }
 }
 
-#
 print(model_params)
 
 scores = []
 all_scores = []
 
-# Random Forest CV mean precision of 57%, logistic regression of 52% and KNN of 48%
-# With KNN I did not have enough memory to run further tests. Check a value of 0.1 for logistic regression
+# Fit the model_params to the GridSearch below.
 
 for model_name, mp in model_params.items():
-    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='accuracy', cv=5,
+    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='f1', cv=5,
                        return_train_score=True, verbose=2)
     clf.fit(X_train_rv, y_train_rv)
     scores.append({
@@ -1055,6 +1046,13 @@ for model_name, mp in model_params.items():
     })
 
 print(scores)
+
+[{'model': 'XGB', 'best_score': 0.289015814385001, 'best_params': {'gamma': 5, 'learning_rate': 0.5, 'max_depth': 6}},
+ {'model': 'CatBoost', 'best_score': 0.2622480417862384, 'best_params': {'depth': 6, 'iterations': 200, 'learning_rate': 0.3}},
+ {'model': 'random_forest', 'best_score': 0.08147775996676113, 'best_params': {'max_features': 'sqrt', 'min_samples_leaf': 1, 'min_samples_split': 5, 'n_estimators': 200}}, {'model': 'knn', 'best_score': 0.27599120047329584, 'best_params': {'n_neighbors': 5}}]
+
+
+
 # {'model': 'XGB', 'best_score': 0.6819904119609328, 'best_params': {'gamma': 0, 'learning_rate': 0.1, 'max_depth': 3}}
 # {'model': 'CatBoost', 'best_score': 0.6898170977764819,
 # 'best_params': {'depth': 3, 'iterations': 50, 'learning_rate': 0.03}}
@@ -1067,9 +1065,31 @@ print(all_scores)
 scores_df = pd.DataFrame(scores, columns=['model', 'best_score', 'best_params'])
 print(scores_df)
 
+#################################################################################################################
+# Section 4.2 - Random forest model with the best hyperparameters
+#################################################################################################################
+
+
+rf_cf = RandomForestClassifier(criterion='entropy', n_estimators = 200, random_state=1)
+
+ #   (criterion='entropy', random_state=1, max_features = 'sqrt', min_samples_leaf= 1, \
+                           #   min_samples_split= 5, n_estimators = 200)
+
+
+rf_cf.fit(X_train_rv, y_train_rv)
+
+from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
+
+y_rf_pred = rf_cf.predict(X_test_rv)
+cm_rf = confusion_matrix(y_rf_pred, y_test_rv )
+print(cm_rf)
+print(classification_report(y_test_rv, y_rf_pred))
+accuracy_score(y_test_rv, y_rf_pred)
+
+
 
 #################################################################################################################
-# Section 4.1 - Stacking the models with the best hyperparameters
+# Section 4.3 - Stacking the models with the best hyperparameters
 #################################################################################################################
 
 # Define the base models
@@ -1313,7 +1333,7 @@ plt.title('Precision v Loss')
 plt.legend()
 plt.show()
 
-y_pred = ann.predict(X_test_rv)
+y_pred = ann_1.predict(X_test_rv)
 y_pred = (y_pred > 0.5)
 print(np.concatenate((y_pred.reshape(len(y_pred), 1), y_test_rv.reshape(len(y_test_rv), 1)), 1))
 
