@@ -898,18 +898,63 @@ X_train = sc_X_train.fit_transform(X_train)
 X_test = sc_X_test.fit_transform(X_test)
 X_deploy = sc_X_test.fit_transform(X_deploy)
 
+##################################################################################################################
 
 # Impute missing values - given time constraints took the default value of 5
 # It would be worth investigating the optimal value for KNNImputer.
-from sklearn.impute import KNNImputer
-imputer = KNNImputer(n_neighbors=5, weights = "uniform")
-X_train = imputer.fit_transform(X_train)
-X_test = imputer.fit_transform(X_test)
-X_deploy = imputer.fit_transform(X_deploy)
+# Please note the below code takes a long time to run, the results have been written out and saved on GITHUB as
+# a result
+# from sklearn.impute import KNNImputer
+# imputer = KNNImputer(n_neighbors=5, weights = "uniform")
+# X_train = imputer.fit_transform(X_train)
+# X_test = imputer.fit_transform(X_test)
+# X_deploy = imputer.fit_transform(X_deploy)
+
+
+# X_train_rv = X_train
+# y_train_rv = y_train.ravel()
+# X_test_rv = X_test
+# y_test_rv = y_test.ravel()
+# X_deploy_rv = X_deploy
+# y_deploy_rv = y_deploy.ravel()
+# np.shape(X_train_rv)
+# np.shape(X_test_rv)
+# np.shape(y_train_rv)
+# np.shape(y_test_rv)
+
+# X_train_rv_df = pd.DataFrame(X_train_rv)
+# y_train_rv_df = pd.DataFrame(y_train_rv)
+# X_test_rv_df = pd.DataFrame(X_test_rv)
+# y_test_rv_df = pd.DataFrame(y_test_rv)
+# X_deploy_rv_df = pd.DataFrame(X_deploy_rv)
+# y_deploy_rv_df = pd.DataFrame(y_deploy_rv)
+#
+# X_train_rv_df.to_csv(r'Files\X_train_rv_df.csv', index=False, header=True)
+# y_train_rv_df.to_csv(r'Files\y_train_rv_df.csv', index=False, header=True)
+# X_test_rv_df.to_csv(r'Files\X_test_rv_df.csv', index=False, header=True)
+# y_test_rv_df.to_csv(r'Files\y_test_rv_df.csv', index=False, header=True)
+# X_deploy_rv_df.to_csv(r'Files\X_deploy_rv_df.csv', index=False, header=True)
+# y_deploy_rv_df.to_csv(r'Files\y_deploy_rv_df.csv', index=False, header=True)
+
+
+##################################################################################################################
+
+# Import the results of KNN Imputer
+X_train_rv_df = pd.read_csv(r'Files\X_train_rv_df.csv')
+y_train_rv_df = pd.read_csv(r'Files\y_train_rv_df.csv')
+X_test_rv_df = pd.read_csv(r'Files\X_test_rv_df.csv')
+y_test_rv_df = pd.read_csv(r'Files\y_test_rv_df.csv')
+X_deploy_rv_df = pd.read_csv(r'Files\X_deploy_rv_df.csv')
+y_deploy_rv_df = pd.read_csv(r'Files\y_deploy_rv_df.csv')
+
+# Convert to numpy arrays
+X_train_rv = X_train_rv_df.values
+y_train_rv = y_train_rv_df.values.ravel()
+X_test_rv = X_test_rv_df.values
+y_test_rv = y_test_rv_df.values.ravel()
+
 
 # Univariate Feature selection
-
-
 # select_feature = SelectKBest(chi2, k=1000).fit(X_train, y_train)
 # select_features_df = pd.DataFrame({'Feature': list(X_train_df.columns),
 #                                    'Scores' : select_feature.scores_})
@@ -920,38 +965,6 @@ X_deploy = imputer.fit_transform(X_deploy)
 # X_train = select_feature.transform(X_train)
 # X_test = select_feature.transform(X_test)
 ##
-
-
-X_train_rv = X_train
-y_train_rv = y_train.ravel()
-X_test_rv = X_test
-y_test_rv = y_test.ravel()
-np.shape(X_train_rv)
-np.shape(X_test_rv)
-np.shape(y_train_rv)
-np.shape(y_test_rv)
-
-# X_train_rv_df = pd.DataFrame(X_train_rv)
-# y_train_rv_df = pd.DataFrame(y_train_rv)
-# X_test_rv_df = pd.DataFrame(X_test_rv)
-# y_test_rv_df = pd.DataFrame(y_test_rv)
-#
-# X_train_rv_df.to_csv(r'Files\X_train_rv_df.csv', index=False, header=True)
-# y_train_rv_df.to_csv(r'Files\y_train_rv_df.csv', index=False, header=True)
-# X_test_rv_df.to_csv(r'Files\X_test_rv_df.csv', index=False, header=True)
-# y_test_rv_df.to_csv(r'Files\y_test_rv_df.csv', index=False, header=True)
-
-# X_train_rv_df = pd.read_csv(r'Files\X_train_rv_df.csv')
-# y_train_rv_df = pd.read_csv(r'Files\y_train_rv_df.csv')
-# X_test_rv_df = pd.read_csv(r'Files\X_test_rv_df.csv')
-# y_test_rv_df = pd.read_csv(r'Files\y_test_rv_df.csv')
-#
-# X_train_rv = X_train_rv_df.values
-# y_train_rv = y_train_rv_df.values.ravel()
-# X_test_rv = X_test_rv_df.values
-# y_test_rv = y_test_rv_df.values.ravel()
-
-y_test_rv.shape
 
 # Recursive feature elimination
 # from sklearn.feature_selection import RFECV
@@ -1026,7 +1039,7 @@ all_scores = []
 # With KNN I did not have enough memory to run further tests. Check a value of 0.1 for logistic regression
 
 for model_name, mp in model_params.items():
-    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='accuracy', cv=10,
+    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='accuracy', cv=5,
                        return_train_score=True, verbose=2)
     clf.fit(X_train_rv, y_train_rv)
     scores.append({
@@ -1042,6 +1055,12 @@ for model_name, mp in model_params.items():
     })
 
 print(scores)
+# {'model': 'XGB', 'best_score': 0.6819904119609328, 'best_params': {'gamma': 0, 'learning_rate': 0.1, 'max_depth': 3}}
+# {'model': 'CatBoost', 'best_score': 0.6898170977764819,
+# 'best_params': {'depth': 3, 'iterations': 50, 'learning_rate': 0.03}}
+# {'model': 'random_forest', 'best_score': 0.6899512159420447,
+# 'best_params': {'max_features': 'log2', 'min_samples_leaf': 4, 'min_samples_split': 10, 'n_estimators': 1000}}
+# {'model': 'knn', 'best_score': 0.6886543070788076, 'best_params': {'n_neighbors': 100}}
 
 print(all_scores)
 
