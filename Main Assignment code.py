@@ -1490,3 +1490,145 @@ deploy_drawdown_ptf.head()
 
 
 
+# Plot the close price against the future price for the test and deploy set
+
+# Test
+stk_prices_test = stk_prices.loc[stk_prices.index == '2020-07']
+stk_prices_test = stk_prices_test[['Symbol','close_price', 'future_price']]
+stk_prices_test.isnull().sum()
+
+stk_prices_test = drop_row(stk_prices_test,['future_price'])
+
+stk_prices_test_upd= pd.merge(pd.merge(pd.merge(pd.merge(pd.merge(stk_prices_test,
+                  company_overview[['Symbol', 'Sector']], how='left', on=['Symbol']),
+                  rf_test_mdl_results[['Symbol','rf_mdl_prob']].iloc[:31], how='left', on=['Symbol'] ),
+                  stkd_test_mdl_results[['Symbol','Stacked_mdl_prob']].iloc[:31], how='left', on=['Symbol']),
+                  ga_test_mdl_results[['Symbol','ga_mdl_prob']].iloc[:31], how='left', on=['Symbol']),
+                  nn_test_mdl_results[['Symbol','nn_mdl_prob']].iloc[:31], how='left', on=['Symbol'])
+
+
+stk_prices_test_upd.iloc[:,4:] = stk_prices_test_upd.iloc[:,4:].fillna(0)
+stk_prices_test_upd.isnull().sum()
+
+stk_prices_test_upd.iloc[:,4:] = stk_prices_test_upd.iloc[:,4:].apply(lambda x: [y if y <= 0 else 1 for y in x])
+
+
+# Scatter Plot
+
+sns.scatterplot(data=stk_prices_test_upd.loc[stk_prices_test_upd['rf_mdl_prob'] == 0],
+                x='close_price', y='future_price', palette='deep', alpha=0.3, zorder=1)
+sns.scatterplot(data=stk_prices_test_upd.loc[stk_prices_test_upd['rf_mdl_prob'] == 1],
+                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='RF')
+sns.scatterplot(data=stk_prices_test_upd.loc[stk_prices_test_upd['Stacked_mdl_prob'] == 1],
+                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='Stacked')
+sns.scatterplot(data=stk_prices_test_upd.loc[stk_prices_test_upd['ga_mdl_prob'] == 1],
+                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='Genetic Algo')
+sns.scatterplot(data=stk_prices_test_upd.loc[stk_prices_test_upd['nn_mdl_prob'] == 1],
+                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='Neural Net')
+plt.plot([-1,10000], [-1, 10000], linewidth=2, color='r', linestyle ='--')
+plt.xlabel('Close Price', size=12)
+plt.xscale('log')
+plt.ylabel('Future Price', size=12)
+plt.yscale('log')
+# plt.legend(loc='upper left')
+plt.title("Close Price v Future Price", fontdict={'size': 16})
+plt.tight_layout()
+plt.show()
+
+
+# Create a stock price difference column
+stk_prices_test_upd['stk_price_gth'] = (stk_prices_test_upd['future_price'] - stk_prices_test_upd['close_price']) \
+                                    / stk_prices_test_upd['close_price']
+
+stk_prices_test_upd = stk_prices_test_upd.loc[stk_prices_test_upd['stk_price_gth'] < 10]
+
+
+# Boxplot and swarmplot to display the model returns by Sector
+sns.boxplot(x="Sector", y="stk_price_gth", data=stk_prices_test_upd, zorder=10)
+sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_test_upd.loc[stk_prices_test_upd['rf_mdl_prob'] == 1],
+              label ='RF', color='orange', zorder=100)
+sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_test_upd.loc[stk_prices_test_upd['Stacked_mdl_prob'] == 1],
+              label ='Stacked', color='green',zorder=100)
+sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_test_upd.loc[stk_prices_test_upd['ga_mdl_prob'] == 1],
+               label ='Genetic Algo', color='red', zorder=100)
+sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_test_upd.loc[stk_prices_test_upd['nn_mdl_prob'] == 1],
+              label='Neural Net', color='purple', zorder=100)
+plt.xticks(rotation=45)
+plt.xlabel('Sector', size=12)
+plt.ylabel('Stock Price Growth', size=12)
+# plt.legend(loc='upper right')
+plt.title("Model Returns by Sector", fontdict={'size': 16})
+plt.tight_layout()
+plt.show()
+
+
+
+
+# Deploy
+stk_prices_deploy = stk_prices.loc[stk_prices.index == '2021-01']
+stk_prices_deploy = stk_prices_deploy[['Symbol','close_price', 'future_price']]
+stk_prices_deploy.isnull().sum()
+
+stk_prices_deploy = drop_row(stk_prices_deploy,['future_price'])
+
+stk_prices_deploy_upd= pd.merge(pd.merge(pd.merge(pd.merge(pd.merge(stk_prices_deploy,
+                  company_overview[['Symbol', 'Sector']], how='left', on=['Symbol']),
+                  rf_deploy_mdl_results[['Symbol','rf_mdl_prob']].iloc[:31], how='left', on=['Symbol'] ),
+                  stkd_deploy_mdl_results[['Symbol','Stacked_mdl_prob']].iloc[:31], how='left', on=['Symbol']),
+                  ga_deploy_mdl_results[['Symbol','ga_mdl_prob']].iloc[:31], how='left', on=['Symbol']),
+                  nn_deploy_mdl_results[['Symbol','nn_mdl_prob']].iloc[:31], how='left', on=['Symbol'])
+
+
+stk_prices_deploy_upd.iloc[:,4:] = stk_prices_deploy_upd.iloc[:,4:].fillna(0)
+stk_prices_deploy_upd.isnull().sum()
+
+stk_prices_deploy_upd.iloc[:,4:] = stk_prices_deploy_upd.iloc[:,4:].apply(lambda x: [y if y <= 0 else 1 for y in x])
+
+
+# Scatter Plot
+
+sns.scatterplot(data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['rf_mdl_prob'] == 0],
+                x='close_price', y='future_price', palette='deep', alpha=0.3, zorder=1)
+sns.scatterplot(data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['rf_mdl_prob'] == 1],
+                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='RF')
+sns.scatterplot(data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['Stacked_mdl_prob'] == 1],
+                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='Stacked')
+sns.scatterplot(data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['ga_mdl_prob'] == 1],
+                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='Genetic Algo')
+sns.scatterplot(data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['nn_mdl_prob'] == 1],
+                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='Neural Net')
+plt.plot([-1,10000], [-1, 10000], linewidth=2, color='r', linestyle ='--')
+plt.xlabel('Close Price', size=12)
+plt.xscale('log')
+plt.ylabel('Future Price', size=12)
+plt.yscale('log')
+# plt.legend(loc='upper left')
+plt.title("Close Price v Future Price", fontdict={'size': 16})
+plt.tight_layout()
+plt.show()
+
+
+# Create a stock price difference column
+stk_prices_deploy_upd['stk_price_gth'] = (stk_prices_deploy_upd['future_price'] - stk_prices_deploy_upd['close_price']) \
+                                    / stk_prices_deploy_upd['close_price']
+
+stk_prices_deploy_upd = stk_prices_deploy_upd.loc[stk_prices_deploy_upd['stk_price_gth'] < 10]
+
+
+# Boxplot and swarmplot to display the model returns by Sector
+sns.boxplot(x="Sector", y="stk_price_gth", data=stk_prices_deploy_upd, zorder=10)
+sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['rf_mdl_prob'] == 1],
+              label ='RF', color='orange', zorder=100)
+sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['Stacked_mdl_prob'] == 1],
+              label ='Stacked', color='green',zorder=100)
+sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['ga_mdl_prob'] == 1],
+               label ='Genetic Algo', color='red', zorder=100)
+sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['nn_mdl_prob'] == 1],
+              label='Neural Net', color='purple', zorder=100)
+plt.xticks(rotation=45)
+plt.xlabel('Sector', size=12)
+plt.ylabel('Stock Price Growth', size=12)
+# plt.legend(loc='upper right')
+plt.title("Model Returns by Sector", fontdict={'size': 16})
+plt.tight_layout()
+plt.show()
