@@ -759,6 +759,7 @@ print(corr_df_nulls.sort_values(by='Correlation'))
 # Dataframe containing each of the correlations
 all_corrs = mdl_train_numeric.corr()
 
+
 # Pairplots give a visual representation of the correlation between the feature variables
 # sns.pairplot(mdl_data_train.iloc[:, 10:14].fillna(0))
 
@@ -967,6 +968,7 @@ X_deploy_rv = X_deploy_rv_df.values
 y_deploy_rv = y_deploy_rv_df.values.ravel()
 
 
+
 # Recursive feature elimination
 # Feature ranking with recursive feature elimination and cross-validated selection of the best number of features.
 # step is the number of features removed at each iteration
@@ -1052,7 +1054,7 @@ all_scores = []
 # Fit the model_params to the GridSearch below.
 
 for model_name, mp in model_params.items():
-    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='f1', cv=5,
+    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='f1', cv=10,
                        return_train_score=True, verbose=2)
     clf.fit(X_train_pca, y_train_pca)
     scores.append({
@@ -1204,7 +1206,7 @@ print(stkd_deploy_mdl_results)
 # Genetic Algorithms
 # Assign the values outlined to the inputs
 
-number_generations = 3  # nothing to do with the dataset
+number_generations = 3  # 3 generations of the algorithm
 population_size = 5  # Start with 5 algorithms
 offspring_size = 3
 scoring_function = 'precision'
@@ -1307,13 +1309,14 @@ ann_1.compile(optimizer='adam', loss='binary_crossentropy', metrics=[precision_m
 # epochs is the number of times we run over the data, in our case we run over the data 100 times
 history_1 = ann_1.fit(X_train_pca, y_train_pca, batch_size=20, epochs=500)
 
-# Fit the second Neural Network - which has 10% dropout in each layer
+# Fit the second Neural Network - has  2 hidden layers containing 50 nodes each for
+# which the second layer has a 10% dropout. The batch size is increased to ensure that the model converges at a higher
+# precision, a higher batch usually leads to a lower test accuracy to counteract this we have included the
+# dropout of 10% on the second hidden layer
 ann_2 = tf.keras.models.Sequential()
 ann_2.add(tf.keras.layers.Dense(units=50, activation='relu'))
 ann_2.add(tf.keras.layers.Dense(units=50, activation='relu'))
 ann_2.add(Dropout(0.1))
-# ann_2.add(tf.keras.layers.Dense(units=50, activation='relu'))
-# ann_2.add(Dropout(0.1))
 ann_2.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
 ann_2.compile(optimizer='adam', loss='binary_crossentropy', metrics=[precision_m])
 history_2 = ann_2.fit(X_train_pca, y_train_pca, batch_size=100, epochs=500)
@@ -1330,14 +1333,14 @@ history_3 = ann_3.fit(X_train_pca, y_train_pca, batch_size=200, epochs=500)
 # Plot the Precision (by epoch) value for each neural network
 # history_1, _2 and _3 returned from model.fit() is a dictionary that has an entry, 'precision', which is the
 # training precision. We want to ensure this has more or less flattened out at the end of our training.
-plt.clf()
+
 # Plot the precision from the fitted models
 plt.plot(history_1.history['precision_m'], label='NN_1')
 plt.plot(history_2.history['precision_m'], label='NN_2')
 plt.plot(history_3.history['precision_m'], label='NN_3')
 plt.title('Precision by model')
 plt.xlabel('# of epochs')
-plt.ylabel('Precision')
+plt.ylabel('Precision (Training set)')
 plt.legend()
 plt.show()
 
