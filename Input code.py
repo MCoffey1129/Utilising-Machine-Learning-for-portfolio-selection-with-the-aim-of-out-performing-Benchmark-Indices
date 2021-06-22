@@ -119,7 +119,7 @@ print(len(upd_stock_list))  # 6364 (7377 - 581 - 432), this is our updated list 
 # Section 1.4.1 -  Company Overview
 
 # API key received from Alpha Vantage
-API_key = "OSPJN1YHMULW3OEO"
+API_key = "XXXXXXXXXXXXX"
 
 # List the columns we would like to keep from the Company overview import ("columns" list)
 # Please note there is a sleep function in the for loop used to import the data to ensure we do not go above the

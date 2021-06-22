@@ -37,6 +37,8 @@ from sklearn.metrics import r2_score
 from numpy import inf
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import chi2
+from sklearn.feature_selection import RFECV
+from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 import keras.backend as K
@@ -965,48 +967,49 @@ X_deploy_rv = X_deploy_rv_df.values
 y_deploy_rv = y_deploy_rv_df.values.ravel()
 
 
-# Adopt PCA to reduce the number of columns to 50
-from sklearn.decomposition import PCA
+# Recursive feature elimination
+# Feature ranking with recursive feature elimination and cross-validated selection of the best number of features.
+# step is the number of features removed at each iteration
+# The f1 score drops from 27.43% to 13.65% after removing 100 of the features, instead of looking to manually
+# remove features from the dataset we will reduce feature dimensionality via PCA while trying to maintain
+# 90% of the variance
+rfecv= RFECV(estimator=RandomForestClassifier(), step=100, cv=5, scoring='f1')
+rfecv= rfecv.fit(X_train_rv, y_train_rv)
+print('Optimal number of features : ' , rfecv.n_features_)
+print('Best features :' , X_train_df.columns[rfecv.support_])
 
+# Plot the change in f1 score as a result of removing features
+plt.figure()
+plt.xlabel("No of model features removed (in 00's)")
+plt.ylabel("Cross Validation score")
+plt.plot(range(1,len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
+plt.title("Recursive Feature Elimination")
+plt.show()
+
+
+# Adopt PCA to reduce the number of columns to 100
 pca = PCA(n_components=100)
 X_train_pca = pca.fit_transform(X_train_rv)
-pca.explained_variance_ratio_.cumsum()  # 88% of the variance is retained
-
 X_test_pca = pca.transform(X_test_rv)
-pca.explained_variance_ratio_.cumsum()
-
 X_deploy_pca = pca.transform(X_deploy_rv)
-pca.explained_variance_ratio_.cumsum()
+pca.explained_variance_ratio_.cumsum()  # 88% of the variance is retained
 
 y_train_pca = y_train_rv
 y_test_pca = y_test_rv
 y_deploy_pca = y_deploy_rv
 
 # Univariate Feature selection
+# Another approach which was not used in this model is to reduce the number of features by only  selecting the best
+# K number of features (determined based on the features chi-squared)
 # select_feature = SelectKBest(chi2, k=1000).fit(X_train, y_train)
 # select_features_df = pd.DataFrame({'Feature': list(X_train_df.columns),
 #                                    'Scores' : select_feature.scores_})
-# a = select_features_df.sort_values(by='Scores', ascending=False)
-# a.head(50)
-# a.loc[a['Feature']=='Industry_Food Distribution']
 #
 # X_train = select_feature.transform(X_train)
 # X_test = select_feature.transform(X_test)
 ##
 
-# Recursive feature elimination
-# from sklearn.feature_selection import RFECV
-# rfecv= RFECV(estimator=RandomForestClassifier(), step=100, cv=5, scoring='f1')
-# rfecv= rfecv.fit(X_train_pca, y_train_pca)
-# print('Optimal number of features : ' , rfecv.n_features_)
-# print('Best features :' , X_train_df.columns[rfecv.support_])
-# #
-# #
-# plt.figure()
-# plt.xlabel("No of features selected")
-# plt.ylabel("Cross Validation score")
-# plt.plot(range(1,len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
-# plt.show()
+
 
 
 #################################################################################################################
@@ -1479,7 +1482,8 @@ deploy_drawdown_ptf['Top30_ret_ddown'] = test_drawdown_ptf.iloc[:31]['future_pri
 deploy_drawdown_ptf.head()
 
 
-
+# test_drawdown_ptf.to_csv(r'Files\results_test.csv', index=False, header=True)
+# deploy_drawdown_ptf.to_csv(r'Files\results_deploy.csv', index=False, header=True)
 
 
 
