@@ -524,6 +524,9 @@ stk_prices = stk_prices.drop(['dt_m', 'close_price_-5M_gth', 'close_price_-6M_gt
 stk_prices.head(50)
 stk_prices.columns
 
+# Keep a copy of the monthly stock price info
+stk_prices_all_months = copy.deepcopy(stk_prices)
+
 # Keep only the dates which are required
 stk_prices = pd.merge(stk_prices, dates_df, left_index=True, right_index=True)
 print(stk_prices)
@@ -961,6 +964,24 @@ y_test_rv = y_test_rv_df.values.ravel()
 X_deploy_rv = X_deploy_rv_df.values
 y_deploy_rv = y_deploy_rv_df.values.ravel()
 
+
+# Adopt PCA to reduce the number of columns to 50
+from sklearn.decomposition import PCA
+
+pca = PCA(n_components=100)
+X_train_pca = pca.fit_transform(X_train_rv)
+pca.explained_variance_ratio_.cumsum()  # 88% of the variance is retained
+
+X_test_pca = pca.transform(X_test_rv)
+pca.explained_variance_ratio_.cumsum()
+
+X_deploy_pca = pca.transform(X_deploy_rv)
+pca.explained_variance_ratio_.cumsum()
+
+y_train_pca = y_train_rv
+y_test_pca = y_test_rv
+y_deploy_pca = y_deploy_rv
+
 # Univariate Feature selection
 # select_feature = SelectKBest(chi2, k=1000).fit(X_train, y_train)
 # select_features_df = pd.DataFrame({'Feature': list(X_train_df.columns),
@@ -976,7 +997,7 @@ y_deploy_rv = y_deploy_rv_df.values.ravel()
 # Recursive feature elimination
 # from sklearn.feature_selection import RFECV
 # rfecv= RFECV(estimator=RandomForestClassifier(), step=100, cv=5, scoring='f1')
-# rfecv= rfecv.fit(X_train_rv, y_train_rv)
+# rfecv= rfecv.fit(X_train_pca, y_train_pca)
 # print('Optimal number of features : ' , rfecv.n_features_)
 # print('Best features :' , X_train_df.columns[rfecv.support_])
 # #
@@ -1012,7 +1033,7 @@ model_params = {
                             'iterations': [20, 50, 200]}},
 
     'random_forest': {'model': RandomForestClassifier(criterion='entropy', random_state=1),
-                      'params': {'n_estimators': [5, 50, 100, 200, 500, 1000], 'max_features': ['auto', 'log2'],
+                      'params': {'n_estimators': [5, 100, 200, 500, 1000], 'max_features': ['auto', 'log2'],
                                  'min_samples_leaf': [1, 2, 4], 'min_samples_split': [2, 5, 10]}},
 
     'knn': {'model': KNeighborsClassifier(algorithm='kd_tree'),
@@ -1030,7 +1051,7 @@ all_scores = []
 for model_name, mp in model_params.items():
     clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='f1', cv=5,
                        return_train_score=True, verbose=2)
-    clf.fit(X_train_rv, y_train_rv)
+    clf.fit(X_train_pca, y_train_pca)
     scores.append({
         'model': model_name,
         'best_score': clf.best_score_,
@@ -1044,12 +1065,6 @@ for model_name, mp in model_params.items():
     })
 
 print(scores)
-
-# [{'model': 'XGB', 'best_score': 0.289015814385001, 'best_params': {'gamma': 5, 'learning_rate': 0.5, 'max_depth': 6}},
-#  {'model': 'CatBoost', 'best_score': 0.2622480417862384, 'best_params': {'depth': 6, 'iterations': 200, 'learning_rate': 0.3}},
-# {'model': 'random_forest', 'best_score': 0.08147775996676113, 'best_params': {'max_features': 'sqrt', 'min_samples_leaf': 1, 'min_samples_split': 5, 'n_estimators': 200}}
-# {'model': 'knn', 'best_score': 0.27599120047329584, 'best_params': {'n_neighbors': 5}}]
-
 
 print(all_scores)
 
@@ -1071,22 +1086,22 @@ print(scores_df)
 rf_cf = RandomForestClassifier(criterion='entropy', n_estimators=5, random_state=1)
 
 # Fit the model
-rf_cf.fit(X_train_rv, y_train_rv)
+rf_cf.fit(X_train_pca, y_train_pca)
 
 # Assess the performance of the model on the test data
-y_rf_pred = rf_cf.predict(X_test_rv)
-cm_rf = confusion_matrix(y_test_rv, y_rf_pred)
+y_rf_pred = rf_cf.predict(X_test_pca)
+cm_rf = confusion_matrix(y_test_pca, y_rf_pred)
 print(cm_rf)
-print(classification_report(y_test_rv, y_rf_pred))
+print(classification_report(y_test_pca, y_rf_pred))
 
 # Assess the performance of the model on the deployment data
-y_rf_dep_pred = rf_cf.predict(X_deploy_rv)
-cm_rf = confusion_matrix(y_deploy_rv, y_rf_dep_pred)
+y_rf_dep_pred = rf_cf.predict(X_deploy_pca)
+cm_rf = confusion_matrix(y_deploy_pca, y_rf_dep_pred)
 print(cm_rf)
-print(classification_report(y_deploy_rv, y_rf_dep_pred))
+print(classification_report(y_deploy_pca, y_rf_dep_pred))
 
 # Random Forest model - Test dataset returns
-rf_test_probs = rf_cf.predict_proba(X_test_rv)
+rf_test_probs = rf_cf.predict_proba(X_test_pca)
 rf_test_probs_df = pd.DataFrame(rf_test_probs[:, 1], columns=['rf_mdl_prob'])
 
 rf_test_mdl_results = pd.concat([symbol_test_df,
@@ -1101,7 +1116,7 @@ rf_test_mdl_results['Top100_ret'] = rf_test_mdl_results.iloc[:101]['future_price
 print(rf_test_mdl_results)
 
 # Random Forest model - deploy dataset returns
-rf_deploy_probs = rf_cf.predict_proba(X_deploy_rv)
+rf_deploy_probs = rf_cf.predict_proba(X_deploy_pca)
 rf_deploy_probs_df = pd.DataFrame(rf_deploy_probs[:, 1], columns=['rf_mdl_prob'])
 
 rf_deploy_mdl_results = pd.concat([symbol_deploy_df,
@@ -1131,26 +1146,26 @@ level0.append(('CB', CatBoostClassifier()))
 level1 = XGBClassifier()
 
 # define the stacking ensemble
-stk_mdl = StackingClassifier(estimators=level0, final_estimator=level1, cv=5, n_jobs=-1, verbose=2)
+stk_mdl = StackingClassifier(estimators=level0, final_estimator=level1, cv=10, n_jobs=-1, verbose=2)
 
 # fit the model on all available data
-stk_mdl.fit(X_train_nn, y_train_rv)
+stk_mdl.fit(X_train_pca, y_train_pca)
 
 # Check the model on the test set
-y_stk_pred = stk_mdl.predict(X_test_nn)
+y_stk_pred = stk_mdl.predict(X_test_pca)
 cm = confusion_matrix(y_test_rv, y_stk_pred)
 print(cm)
 print(classification_report(y_test_rv, y_stk_pred))
 
 # Check the model on the deploy set
-y_stk_dep_pred = stk_mdl.predict(X_deploy_nn)
-cm = confusion_matrix(y_deploy_rv, y_stk_dep_pred)
+y_stk_dep_pred = stk_mdl.predict(X_deploy_pca)
+cm = confusion_matrix(y_deploy_pca, y_stk_dep_pred)
 print(cm)
-print(classification_report(y_deploy_rv, y_stk_dep_pred))
+print(classification_report(y_deploy_pca, y_stk_dep_pred))
 
 # Stacked model - Test dataset returns
 
-stkd_test_probs = stk_mdl.predict_proba(X_test_rv)
+stkd_test_probs = stk_mdl.predict_proba(X_test_pca)
 stkd_test_probs_df = pd.DataFrame(stkd_test_probs[:, 1], columns=['Stacked_mdl_prob'])
 
 stkd_test_mdl_results = pd.concat([symbol_test_df,
@@ -1165,7 +1180,7 @@ stkd_test_mdl_results['Top100_ret'] = stkd_test_mdl_results.iloc[:101]['future_p
 print(stkd_test_mdl_results)
 
 # Stacked model - deploy dataset returns
-stkd_deploy_probs = stk_mdl.predict_proba(X_deploy_rv)
+stkd_deploy_probs = stk_mdl.predict_proba(X_deploy_pca)
 stkd_deploy_probs_df = pd.DataFrame(stkd_deploy_probs[:, 1], columns=['Stacked_mdl_prob'])
 
 stkd_deploy_mdl_results = pd.concat([symbol_deploy_df,
@@ -1197,27 +1212,29 @@ tpot_clf = TPOTClassifier(generations=number_generations, population_size=popula
                           verbosity=2, random_state=2, cv=5)
 
 # # Fit the classifier to the training data
-tpot_clf.fit(X_train_rv, y_train_rv)
-# Best pipeline: KNeighborsClassifier(input_matrix, n_neighbors=23, p=2, weights=uniform)
+tpot_clf.fit(X_train_pca, y_train_pca)
+
 
 # # Score on the test set
-tpot_clf.score(X_test_rv, y_test_rv)
+tpot_clf.score(X_test_pca, y_test_rv)
+#Best pipeline: DecisionTreeClassifier(input_matrix, criterion=gini, max_depth=3, min_samples_leaf=10, min_samples_split=9)
+
 
 # Assess the performance of the model on the test dataset
-y_ga_pred = tpot_clf.predict(X_test_rv)
+y_ga_pred = tpot_clf.predict(X_test_pca)
 cm_rf = confusion_matrix(y_test_rv, y_ga_pred)
 print(cm_rf)
 print(classification_report(y_test_rv, y_ga_pred))
 
 # Assess the performance of the model on the deployment dataset
-y_ga_dep_pred = tpot_clf.predict(X_deploy_rv)
-cm_rf = confusion_matrix(y_deploy_rv, y_ga_dep_pred)
+y_ga_dep_pred = tpot_clf.predict(X_deploy_pca)
+cm_rf = confusion_matrix(y_deploy_pca, y_ga_dep_pred)
 print(cm_rf)
-print(classification_report(y_deploy_rv, y_ga_dep_pred))
+print(classification_report(y_deploy_pca, y_ga_dep_pred))
 
 # Genetic Algorithm model - Test dataset returns
 
-ga_test_probs = tpot_clf.predict_proba(X_test_rv)
+ga_test_probs = tpot_clf.predict_proba(X_test_pca)
 ga_test_probs_df = pd.DataFrame(ga_test_probs[:, 1], columns=['ga_mdl_prob'])
 
 ga_test_mdl_results = pd.concat([symbol_test_df,
@@ -1232,7 +1249,7 @@ ga_test_mdl_results['Top100_ret'] = ga_test_mdl_results.iloc[:101]['future_price
 print(ga_test_mdl_results)
 
 # Genetic Algorithm model  - deploy dataset returns
-ga_deploy_probs = tpot_clf.predict_proba(X_deploy_rv)
+ga_deploy_probs = tpot_clf.predict_proba(X_deploy_pca)
 ga_deploy_probs_df = pd.DataFrame(ga_deploy_probs[:, 1], columns=['ga_mdl_prob'])
 
 ga_deploy_mdl_results = pd.concat([symbol_deploy_df,
@@ -1249,14 +1266,6 @@ print(ga_deploy_mdl_results)
 #################################################################################################################
 # Section 4.4 - Neural Networks
 #################################################################################################################
-
-# Adopt PCA to reduce the number of columns to 50
-from sklearn.decomposition import PCA
-
-pca = PCA(n_components=100)
-X_train_nn = pca.fit_transform(X_train_rv)
-X_test_nn = pca.transform(X_test_rv)
-X_deploy_nn = pca.transform(X_deploy_rv)
 
 # Artificial Neural Network
 # Seed the network
@@ -1293,33 +1302,33 @@ ann_1.compile(optimizer='adam', loss='binary_crossentropy', metrics=[precision_m
 # Training the ANN on the Training set
 # We are doing batch learning, a good rule of thumb is to use 32
 # epochs is the number of times we run over the data, in our case we run over the data 100 times
-history_1 = ann_1.fit(X_train_nn, y_train_rv, batch_size=20, epochs=300)
+history_1 = ann_1.fit(X_train_pca, y_train_pca, batch_size=20, epochs=500)
 
 # Fit the second Neural Network - which has 10% dropout in each layer
 ann_2 = tf.keras.models.Sequential()
 ann_2.add(tf.keras.layers.Dense(units=50, activation='relu'))
 ann_2.add(tf.keras.layers.Dense(units=50, activation='relu'))
 ann_2.add(Dropout(0.1))
-ann_2.add(tf.keras.layers.Dense(units=50, activation='relu'))
-ann_2.add(Dropout(0.1))
+# ann_2.add(tf.keras.layers.Dense(units=50, activation='relu'))
+# ann_2.add(Dropout(0.1))
 ann_2.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
 ann_2.compile(optimizer='adam', loss='binary_crossentropy', metrics=[precision_m])
-history_2 = ann_2.fit(X_train_nn, y_train_rv, batch_size=200, epochs=300)
+history_2 = ann_2.fit(X_train_pca, y_train_pca, batch_size=100, epochs=500)
 
 # Fit the third Neural Network - which has a 20% droput on each layer and a different activation function
 ann_3 = tf.keras.models.Sequential()
-ann_3.add(tf.keras.layers.Dense(units=10, activation=tf.keras.activations.tanh))
-ann_3.add(tf.keras.layers.Dense(units=10, activation=tf.keras.activations.tanh))
-ann_3.add(tf.keras.layers.Dense(units=10, activation=tf.keras.activations.tanh))
+ann_3.add(tf.keras.layers.Dense(units=30, activation=tf.keras.activations.tanh))
+ann_3.add(tf.keras.layers.Dense(units=30, activation=tf.keras.activations.tanh))
+ann_3.add(tf.keras.layers.Dense(units=30, activation=tf.keras.activations.tanh))
 ann_3.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
 ann_3.compile(optimizer='adam', loss='binary_crossentropy', metrics=[precision_m])
-history_3 = ann_3.fit(X_train_nn, y_train_rv, batch_size=200, epochs=300)
+history_3 = ann_3.fit(X_train_pca, y_train_pca, batch_size=200, epochs=500)
 
 # Plot the Precision (by epoch) value for each neural network
 # history_1, _2 and _3 returned from model.fit() is a dictionary that has an entry, 'precision', which is the
 # training precision. We want to ensure this has more or less flattened out at the end of our training.
-
-# Plot the precision from the fit
+plt.clf()
+# Plot the precision from the fitted models
 plt.plot(history_1.history['precision_m'], label='NN_1')
 plt.plot(history_2.history['precision_m'], label='NN_2')
 plt.plot(history_3.history['precision_m'], label='NN_3')
@@ -1330,10 +1339,10 @@ plt.legend()
 plt.show()
 
 # Assess the model on the test data
-nn_test_prob = np.mean(np.hstack((ann_1.predict(X_test_nn), ann_2.predict(X_test_nn), ann_3.predict(X_test_nn))),
+nn_test_prob = np.mean(np.hstack((ann_1.predict(X_test_pca), ann_2.predict(X_test_pca), ann_3.predict(X_test_pca))),
                        axis=1)
 nn_test_prob_tf = (nn_test_prob > 0.5)
-# print(np.concatenate((y_pred.reshape(len(y_pred), 1), y_test_rv.reshape(len(y_test_rv), 1)), 1))
+
 
 cm = confusion_matrix(y_test_rv, nn_test_prob_tf)
 print(cm)
@@ -1341,12 +1350,12 @@ cr = classification_report(y_test_rv, nn_test_prob_tf)
 print(cr)
 
 # Assess the model on the deploy data
-nn_deploy_prob = np.mean(np.hstack((ann_1.predict(X_deploy_nn), ann_2.predict(X_deploy_nn),
-                                    ann_3.predict(X_deploy_nn))), axis=1)
+nn_deploy_prob = np.mean(np.hstack((ann_1.predict(X_deploy_pca), ann_2.predict(X_deploy_pca),
+                                    ann_3.predict(X_deploy_pca))), axis=1)
 nn_deploy_prob_tf = (nn_deploy_prob > 0.5)
-cm = confusion_matrix(y_deploy_rv, nn_deploy_prob_tf)
+cm = confusion_matrix(y_deploy_pca, nn_deploy_prob_tf)
 print(cm)
-cr = classification_report(y_deploy_rv, nn_deploy_prob_tf)
+cr = classification_report(y_deploy_pca, nn_deploy_prob_tf)
 print(cr)
 
 # Artificial Neural Networks model - Test dataset returns
@@ -1383,7 +1392,7 @@ print(nn_deploy_mdl_results)
 
 
 #################################################################################################################
-# Section 5 - Top 30 cases from each model versus using Max Drawdown versus Max Sharpe Ratio
+# Section 5 - Top 30 cases from each model versus using Max Drawdown and Max Sharpe Ratio
 #################################################################################################################
 
 # Join the Test and deploy data probabilities for each model
@@ -1402,6 +1411,7 @@ combined_mdl_test['Top30_ret'] = combined_mdl_test.iloc[:31]['future_price_gth']
 combined_mdl_test['Top100_ret'] = combined_mdl_test.iloc[:101]['future_price_gth'].mean()
 combined_mdl_test = combined_mdl_test.iloc[:201]
 
+
 # Deploy dataset
 combined_mdl_deploy = \
 pd.merge(pd.merge(pd.merge(rf_deploy_mdl_results[['Symbol', 'Industry', 'gt_10pc_gth', 'future_price_gth', 'rf_mdl_prob']]
@@ -1419,40 +1429,57 @@ combined_mdl_deploy['Top100_ret'] = combined_mdl_deploy.iloc[:101]['future_price
 combined_mdl_deploy = combined_mdl_deploy.iloc[:201]
 
 
+ #######
 
-from pypfopt import risk_models
-from pypfopt import expected_returns
-from pypfopt.efficient_frontier import EfficientFrontier
 
-# Calculate expected returns mu from the set of stock prices dataset
-mu = expected_returns.mean_historical_return(stock_prices)
 
-# Calculate the covariance matrix S
-Sigma = risk_models.sample_cov(stock_prices)
-
-# Obtain the efficient frontier
-ef = EfficientFrontier(mu, Sigma)
-print(mu, Sigma)
-
-# Calculate weights for the maximum Sharpe ratio portfolio
-raw_weights_maxsharpe = ef.max_sharpe()
-cleaned_weights_maxsharpe = ef.clean_weights()
-print(raw_weights_maxsharpe, cleaned_weights_maxsharpe)
+# Stock prices for every month
+monthly_stock_prices_all = stk_prices_all_months[['Symbol', 'close_price']].sort_values(by=['Symbol','dt'])
 
 # Historical drawdown
+# Calculate the running maximum - first pivot the data
+monthly_sp_all = monthly_stock_prices_all.pivot_table(index=['dt'], columns='Symbol',values='close_price')
+
+mnthly_retrns = monthly_sp_all.pct_change()
+cum_mnthly_returns = (1 + mnthly_retrns).cumprod()
+
+
 # Calculate the running maximum
-running_max = np.maximum.accumulate(cum_rets)
+running_max = np.fmax.accumulate(cum_mnthly_returns)
 
 # Ensure the value never drops below 1
 running_max[running_max < 1] = 1
 
 # Calculate the percentage drawdown
-drawdown = (cum_rets) / running_max - 1
+drawdown = (cum_mnthly_returns) / running_max - 1
 
-# Plot the results
-drawdown.plot()
-plt.show()
 
-#################################################################################################################
-# Section 6 - Implementation of the model at Jan '21
-#################################################################################################################
+# Plot the results - as you can see the drawdown on 'AAME' is a lot larger than 'AAPL'
+drawdown[['AAME','AAPL']].plot()
+
+largest_drawdown = pd.DataFrame(drawdown.loc[drawdown.index < '2020-07'].min(),columns=['largest_drawdown'])
+largest_drawdown.tail()
+
+# Test Drawdown portfolio
+
+test_drawdown_ptf = pd.merge(combined_mdl_test,largest_drawdown, how='left', on=['Symbol'])
+test_drawdown_ptf.head(10)
+
+test_drawdown_ptf.sort_values(by=['largest_drawdown'], inplace=True, ignore_index=True, ascending=False)
+test_drawdown_ptf['Top30_ret_ddown'] = test_drawdown_ptf.iloc[:31]['future_price_gth'].mean()
+test_drawdown_ptf.head()
+
+# Deploy Drawdown portfolio
+
+deploy_drawdown_ptf = pd.merge(combined_mdl_deploy,largest_drawdown, how='left', on=['Symbol'])
+deploy_drawdown_ptf.head(10)
+
+deploy_drawdown_ptf.sort_values(by=['largest_drawdown'], inplace=True, ignore_index=True, ascending=False)
+deploy_drawdown_ptf['Top30_ret_ddown'] = test_drawdown_ptf.iloc[:31]['future_price_gth'].mean()
+deploy_drawdown_ptf.head()
+
+
+
+
+
+
