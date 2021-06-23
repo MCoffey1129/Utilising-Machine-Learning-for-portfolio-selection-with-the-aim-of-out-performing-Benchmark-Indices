@@ -323,5 +323,6 @@ for stock in upd_stock_list1:
 
 print(monthly_prices)
 
-# Write out the CSV.
+# Write out the CSV
+#
 # monthly_prices.to_csv(r'Files\monthly_prices.csv', index=False, header=True)
