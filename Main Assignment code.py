@@ -1,14 +1,14 @@
 ###############################################################################################################
-# Section 2 - Feature Engineering
+# Section 1 - Data Import -ctd
 #
-#         2.1 - Company Overview table
-#         2.2 - Financial Results table
-#         2.3 - Monthly Stock Prices
+#         1.6 - Company Overview table
+#         1.7 - Financial Results table
+#         1.8 - Monthly Stock Prices
 ###############################################################################################################
 
 
 ###############################################################################################################
-# Section 2.0 - Import the required packages and functions
+# Import the required packages and functions
 ###############################################################################################################
 
 # Packages
@@ -166,7 +166,7 @@ def precision_m(y_true, y_pred):
 
 
 ###############################################################################################################
-# Section 2.1 - Company Overview
+# Section 1.5 - Company Overview
 #
 #              - We transform our company overview dataframe into a date dependent table containing each of
 #                the dates required for our model
@@ -260,7 +260,7 @@ company_overview_dt.head()
 company_overview_dt.tail()
 
 ##################################################################################################################
-# Section 2.2 - Financial Results data including earnings, income statement, balance sheet and cash flow statement
+# Section 1.6 - Financial Results data including earnings, income statement, balance sheet and cash flow statement
 ##################################################################################################################
 
 # Create a financial results dataset which is a merge of earnings, income statement, balance sheet and
@@ -446,7 +446,7 @@ financial_results_reorder.shape  # the number of columns are unchanged at 641 as
 
 
 ##################################################################################################################
-# Section 2.3 - Bring in the monthly stock prices
+# Section 1.7 - Bring in the monthly stock prices
 ##################################################################################################################
 
 # Check the top 20 entries in the table
@@ -540,10 +540,10 @@ stk_prices.head(20)
 # profitable than investing in Jan.
 
 # function(table,close_price to be lower than, future price to be lower than)
-# seaborn_lm_plt(stk_prices, 10, 50)  # cases which have a price of less than $10 and a future price less than $50
-# seaborn_lm_plt(stk_prices, 100, 500)
-# seaborn_lm_plt(stk_prices, 5, 20)
-# seaborn_lm_plt(stk_prices, 5, 1000000)  # Some large stock price increases make it difficult to see the overall impact
+seaborn_lm_plt(stk_prices, 10, 50)  # cases which have a price of less than $10 and a future price less than $50
+seaborn_lm_plt(stk_prices, 100, 500)
+seaborn_lm_plt(stk_prices, 5, 20)
+seaborn_lm_plt(stk_prices, 5, 1000000)  # Some large stock price increases make it difficult to see the overall impact
 
 
 # Code for checking the stocks with the largest 6 month gains on companies who had a share price of less than 5 euro
@@ -555,7 +555,7 @@ b['diff'] = b['future_price'] - b['close_price']
 print(b.sort_values(by=['diff'], ascending=False))
 
 ##################################################################################################################
-# Section 2.4 - Creation of new modelled features
+# Section 2 - Creation of new modelled features
 ##################################################################################################################
 
 # Join the three tables together by index
@@ -667,9 +667,9 @@ for col1 in list(industry_avg):
 
 # Boxplot which can be used to view the population of a variable which had a share price growth of greater than
 # 10% versus the population that did not
-# sns.boxplot(data=mdl_input_data_upd, x='gt_10pc_gth', y='ebitda_margin_v_ind_avg', whis=10)
-# plt.yscale('log')
-# plt.show()
+sns.boxplot(data=mdl_input_data_upd, x='gt_10pc_gth', y='ebitda_margin_v_ind_avg', whis=10)
+plt.yscale('log')
+plt.show()
 
 
 # Checks
@@ -758,7 +758,6 @@ print(corr_df_nulls.sort_values(by='Correlation'))
 
 # Dataframe containing each of the correlations
 all_corrs = mdl_train_numeric.corr()
-
 
 # Pairplots give a visual representation of the correlation between the feature variables
 # sns.pairplot(mdl_data_train.iloc[:, 10:14].fillna(0))
@@ -856,7 +855,7 @@ mdl_deploy = mdl_deploy.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Countr
 print(pd.DataFrame(mdl_data_train.dtypes, columns=['datatype']).sort_values('datatype'))  # 3 character fields remaining
 
 ##################################################################################################################
-# Section 3.2 - Removing Nulls
+# Section 3 Data prep ctd - Removing Nulls
 ##################################################################################################################
 
 # a= pd.DataFrame(X_train_df.columns)
@@ -911,6 +910,8 @@ X_test = sc_X_test.fit_transform(X_test)
 X_deploy = sc_X_test.fit_transform(X_deploy)
 
 ##################################################################################################################
+ # Please note the below has been commented out due to the length of time requireed to impute
+##################################################################################################################
 
 # Impute missing values - given time constraints took the default value of 5
 # It would be worth investigating the optimal value for KNNImputer.
@@ -952,6 +953,8 @@ X_deploy = sc_X_test.fit_transform(X_deploy)
 ##################################################################################################################
 
 # Import the results of KNN Imputer
+
+#Please note these files have been provided
 X_train_rv_df = pd.read_csv(r'Files\X_train_rv_df.csv')
 y_train_rv_df = pd.read_csv(r'Files\y_train_rv_df.csv')
 X_test_rv_df = pd.read_csv(r'Files\X_test_rv_df.csv')
@@ -967,27 +970,24 @@ y_test_rv = y_test_rv_df.values.ravel()
 X_deploy_rv = X_deploy_rv_df.values
 y_deploy_rv = y_deploy_rv_df.values.ravel()
 
-
-
 # Recursive feature elimination
 # Feature ranking with recursive feature elimination and cross-validated selection of the best number of features.
 # step is the number of features removed at each iteration
 # The f1 score drops from 27.43% to 13.65% after removing 100 of the features, instead of looking to manually
 # remove features from the dataset we will reduce feature dimensionality via PCA while trying to maintain
 # 90% of the variance
-rfecv= RFECV(estimator=RandomForestClassifier(), step=100, cv=5, scoring='f1')
-rfecv= rfecv.fit(X_train_rv, y_train_rv)
-print('Optimal number of features : ' , rfecv.n_features_)
-print('Best features :' , X_train_df.columns[rfecv.support_])
+rfecv = RFECV(estimator=RandomForestClassifier(), step=100, cv=5, scoring='f1')
+rfecv = rfecv.fit(X_train_rv, y_train_rv)
+print('Optimal number of features : ', rfecv.n_features_)
+print('Best features :', X_train_df.columns[rfecv.support_])
 
 # Plot the change in f1 score as a result of removing features
 plt.figure()
 plt.xlabel("No of model features removed (in 00's)")
 plt.ylabel("Cross Validation score")
-plt.plot(range(1,len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
+plt.plot(range(1, len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
 plt.title("Recursive Feature Elimination")
 plt.show()
-
 
 # Adopt PCA to reduce the number of columns to 100
 pca = PCA(n_components=100)
@@ -1012,30 +1012,25 @@ y_deploy_pca = y_deploy_rv
 ##
 
 
-
-
 #################################################################################################################
 # Section 4 - Modelling
 #         4.1 - Grid Search to find the best hyperparameters to use for RF, KNN, XGBoost and CatBoost
 #         4.2 - Random Forest
 #         4.3 - Stacked Model
-#         4.4 - XGBoost and CatBoost
+#         4.4 - Genetic Algorithm
 #         4.5 - Neural Networks
-#         4.5 - Min Drawdown and Max Sharpe Ratio
+#         4.6 - Min Drawdown and diversification
 #################################################################################################################
 
 
+#################################################################################################################
+#  Section 4.1 - GridSearchCV
+#################################################################################################################
+
 # Model Parameters run through the GridSearch CV
 # Please note with more processing power and less of a time constraint I would be looking to run more parameters
-# through the Grid across 10 cross validations rather than 5
+# through the Grid
 model_params = {
-    'XGB': {'model': XGBClassifier(),
-            'params': {'learning_rate': [0.1, 0.3, 0.5], 'max_depth': [3, 6, 9],
-                       'gamma': [0, 1, 5]}},
-
-    'CatBoost': {'model': CatBoostClassifier(random_seed=1),
-                 'params': {'learning_rate': [0.3, 0.1, 0.03], 'depth': [6, 3, 1],
-                            'iterations': [20, 50, 200]}},
 
     'random_forest': {'model': RandomForestClassifier(criterion='entropy', random_state=1),
                       'params': {'n_estimators': [5, 100, 200, 500, 1000], 'max_features': ['auto', 'log2'],
@@ -1054,7 +1049,7 @@ all_scores = []
 # Fit the model_params to the GridSearch below.
 
 for model_name, mp in model_params.items():
-    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='f1', cv=10,
+    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='f1_macro', cv=10,
                        return_train_score=True, verbose=2)
     clf.fit(X_train_pca, y_train_pca)
     scores.append({
@@ -1076,17 +1071,28 @@ print(all_scores)
 scores_df = pd.DataFrame(scores, columns=['model', 'best_score', 'best_params'])
 print(scores_df)
 
+# Grid searchCV for XGBoost
+
+xgb_params = {'learning_rate': [0.05, 0.1, 0.3, 0.5], 'max_depth': [3, 6, 9, 15],
+              'gamma': [0, 1, 5], 'min_child_weight': [1, 3, 5]}
+
+classifier = XGBClassifier()
+grid_search = GridSearchCV(classifier, param_grid=xgb_params, cv=5, n_jobs=-1, verbose=3)
+grid_search.fit(X_train_pca, y_train_pca)
+
+print(grid_search.best_params_)
+
 #################################################################################################################
 # Section 4.2 - Random forest model
 #################################################################################################################
 
-# We will continue with a RandomForestClassifier with n_estimators of 5
+# We will continue with a RandomForestClassifier with n_estimators of 5. We will look to optimise
+# the hyperparameters once we fully understand how the model is performing.
 
 # Random Forest Classifier
 rf_cf = RandomForestClassifier(criterion='entropy', n_estimators=5, random_state=1)
 
 # Fit the model
-rf_cf.fit(X_train_pca, y_train_pca)
 
 # Assess the performance of the model on the test data
 y_rf_pred = rf_cf.predict(X_test_pca)
@@ -1195,7 +1201,7 @@ stkd_deploy_mdl_results['Top100_ret'] = stkd_deploy_mdl_results.iloc[:101]['futu
 print(stkd_deploy_mdl_results)
 
 #################################################################################################################
-# Section 4.2 - Genetic Algorithm
+# Section 4.4 - Genetic Algorithm
 #################################################################################################################
 
 # Genetic Algorithms
@@ -1214,10 +1220,9 @@ tpot_clf = TPOTClassifier(generations=number_generations, population_size=popula
 # # Fit the classifier to the training data
 tpot_clf.fit(X_train_pca, y_train_pca)
 
-
 # # Score on the test set
 tpot_clf.score(X_test_pca, y_test_rv)
-#Best pipeline: DecisionTreeClassifier(input_matrix, criterion=gini, max_depth=3, min_samples_leaf=10, min_samples_split=9)
+# Best pipeline: DecisionTreeClassifier(input_matrix, criterion=gini, max_depth=3, min_samples_leaf=10, min_samples_split=9)
 
 
 # Assess the performance of the model on the test dataset
@@ -1264,7 +1269,7 @@ ga_deploy_mdl_results['Top100_ret'] = ga_deploy_mdl_results.iloc[:101]['future_p
 print(ga_deploy_mdl_results)
 
 #################################################################################################################
-# Section 4.4 - Neural Networks
+# Section 4.5 - Neural Networks
 #################################################################################################################
 
 # Artificial Neural Network
@@ -1344,7 +1349,6 @@ nn_test_prob = np.mean(np.hstack((ann_1.predict(X_test_pca), ann_2.predict(X_tes
                        axis=1)
 nn_test_prob_tf = (nn_test_prob > 0.5)
 
-
 cm = confusion_matrix(y_test_rv, nn_test_prob_tf)
 print(cm)
 cr = classification_report(y_test_rv, nn_test_prob_tf)
@@ -1389,22 +1393,19 @@ nn_deploy_mdl_results['Top30_ret'] = nn_deploy_mdl_results.iloc[:31]['future_pri
 nn_deploy_mdl_results['Top100_ret'] = nn_deploy_mdl_results.iloc[:101]['future_price_gth'].mean()
 print(nn_deploy_mdl_results)
 
-
-
-
 #################################################################################################################
-# Section 5 - Top 30 cases from each model versus using Max Drawdown and Max Sharpe Ratio
+# Section 4.6 - Top 30 cases from each model versus using min Drawdown vs a fully diversified model
 #################################################################################################################
 
 # Join the Test and deploy data probabilities for each model
 combined_mdl_test = \
-pd.merge(pd.merge(pd.merge(rf_test_mdl_results[['Symbol', 'Industry', 'gt_10pc_gth', 'future_price_gth', 'rf_mdl_prob']]
-                               , stkd_test_mdl_results[['Symbol', 'Stacked_mdl_prob']], how='left', on=['Symbol'])
-             , ga_test_mdl_results[['Symbol', 'ga_mdl_prob']], how='left', on=['Symbol'])
-            , nn_test_mdl_results[['Symbol','nn_mdl_prob']], how='left', on= ['Symbol'])
+    pd.merge(
+        pd.merge(pd.merge(rf_test_mdl_results[['Symbol', 'Industry', 'gt_10pc_gth', 'future_price_gth', 'rf_mdl_prob']]
+                          , stkd_test_mdl_results[['Symbol', 'Stacked_mdl_prob']], how='left', on=['Symbol'])
+                 , ga_test_mdl_results[['Symbol', 'ga_mdl_prob']], how='left', on=['Symbol'])
+        , nn_test_mdl_results[['Symbol', 'nn_mdl_prob']], how='left', on=['Symbol'])
 
-
-combined_mdl_test['avg_mdl_prob'] = combined_mdl_test.iloc[:,4:8].mean(axis=1)
+combined_mdl_test['avg_mdl_prob'] = combined_mdl_test.iloc[:, 4:8].mean(axis=1)
 
 combined_mdl_test.sort_values(by=['avg_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
 
@@ -1412,16 +1413,15 @@ combined_mdl_test['Top30_ret'] = combined_mdl_test.iloc[:31]['future_price_gth']
 combined_mdl_test['Top100_ret'] = combined_mdl_test.iloc[:101]['future_price_gth'].mean()
 combined_mdl_test = combined_mdl_test.iloc[:201]
 
-
 # Deploy dataset
 combined_mdl_deploy = \
-pd.merge(pd.merge(pd.merge(rf_deploy_mdl_results[['Symbol', 'Industry', 'gt_10pc_gth', 'future_price_gth', 'rf_mdl_prob']]
-                               , stkd_deploy_mdl_results[['Symbol', 'Stacked_mdl_prob']], how='left', on=['Symbol'])
-             , ga_deploy_mdl_results[['Symbol', 'ga_mdl_prob']], how='left', on=['Symbol'])
-            , nn_deploy_mdl_results[['Symbol','nn_mdl_prob']], how='left', on= ['Symbol'])
+    pd.merge(pd.merge(
+        pd.merge(rf_deploy_mdl_results[['Symbol', 'Industry', 'gt_10pc_gth', 'future_price_gth', 'rf_mdl_prob']]
+                 , stkd_deploy_mdl_results[['Symbol', 'Stacked_mdl_prob']], how='left', on=['Symbol'])
+        , ga_deploy_mdl_results[['Symbol', 'ga_mdl_prob']], how='left', on=['Symbol'])
+        , nn_deploy_mdl_results[['Symbol', 'nn_mdl_prob']], how='left', on=['Symbol'])
 
-
-combined_mdl_deploy['avg_mdl_prob'] = combined_mdl_deploy.iloc[:,4:8].mean(axis=1)
+combined_mdl_deploy['avg_mdl_prob'] = combined_mdl_deploy.iloc[:, 4:8].mean(axis=1)
 
 combined_mdl_deploy.sort_values(by=['avg_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
 
@@ -1429,21 +1429,18 @@ combined_mdl_deploy['Top30_ret'] = combined_mdl_deploy.iloc[:31]['future_price_g
 combined_mdl_deploy['Top100_ret'] = combined_mdl_deploy.iloc[:101]['future_price_gth'].mean()
 combined_mdl_deploy = combined_mdl_deploy.iloc[:201]
 
-
- #######
-
+#######
 
 
 # Stock prices for every month
-monthly_stock_prices_all = stk_prices_all_months[['Symbol', 'close_price']].sort_values(by=['Symbol','dt'])
+monthly_stock_prices_all = stk_prices_all_months[['Symbol', 'close_price']].sort_values(by=['Symbol', 'dt'])
 
 # Historical drawdown
 # Calculate the running maximum - first pivot the data
-monthly_sp_all = monthly_stock_prices_all.pivot_table(index=['dt'], columns='Symbol',values='close_price')
+monthly_sp_all = monthly_stock_prices_all.pivot_table(index=['dt'], columns='Symbol', values='close_price')
 
 mnthly_retrns = monthly_sp_all.pct_change()
 cum_mnthly_returns = (1 + mnthly_retrns).cumprod()
-
 
 # Calculate the running maximum
 running_max = np.fmax.accumulate(cum_mnthly_returns)
@@ -1454,16 +1451,15 @@ running_max[running_max < 1] = 1
 # Calculate the percentage drawdown
 drawdown = (cum_mnthly_returns) / running_max - 1
 
-
 # Plot the results - as you can see the drawdown on 'AAME' is a lot larger than 'AAPL'
-drawdown[['AAME','AAPL']].plot()
+drawdown[['AAME', 'AAPL']].plot()
 
-largest_drawdown = pd.DataFrame(drawdown.loc[drawdown.index < '2020-07'].min(),columns=['largest_drawdown'])
+largest_drawdown = pd.DataFrame(drawdown.loc[drawdown.index < '2020-07'].min(), columns=['largest_drawdown'])
 largest_drawdown.tail()
 
 # Test Drawdown portfolio
 
-test_drawdown_ptf = pd.merge(combined_mdl_test,largest_drawdown, how='left', on=['Symbol'])
+test_drawdown_ptf = pd.merge(combined_mdl_test, largest_drawdown, how='left', on=['Symbol'])
 test_drawdown_ptf.head(10)
 
 test_drawdown_ptf.sort_values(by=['largest_drawdown'], inplace=True, ignore_index=True, ascending=False)
@@ -1472,55 +1468,58 @@ test_drawdown_ptf.head()
 
 # Deploy Drawdown portfolio
 
-deploy_drawdown_ptf = pd.merge(combined_mdl_deploy,largest_drawdown, how='left', on=['Symbol'])
+deploy_drawdown_ptf = pd.merge(combined_mdl_deploy, largest_drawdown, how='left', on=['Symbol'])
 deploy_drawdown_ptf.head(10)
 
 deploy_drawdown_ptf.sort_values(by=['largest_drawdown'], inplace=True, ignore_index=True, ascending=False)
 deploy_drawdown_ptf['Top30_ret_ddown'] = test_drawdown_ptf.iloc[:31]['future_price_gth'].mean()
 deploy_drawdown_ptf.head()
 
-
 # test_drawdown_ptf.to_csv(r'Files\results_test.csv', index=False, header=True)
 # deploy_drawdown_ptf.to_csv(r'Files\results_deploy.csv', index=False, header=True)
 
 
-
 # Plot the close price against the future price for the test and deploy set
+# Tables used to populate the last two pages of the assignment
+
 
 # Test
 stk_prices_test = stk_prices.loc[stk_prices.index == '2020-07']
-stk_prices_test = stk_prices_test[['Symbol','close_price', 'future_price']]
+stk_prices_test = stk_prices_test[['Symbol', 'close_price', 'future_price']]
 stk_prices_test.isnull().sum()
 
-stk_prices_test = drop_row(stk_prices_test,['future_price'])
+stk_prices_test = drop_row(stk_prices_test, ['future_price'])
 
-stk_prices_test_upd= pd.merge(pd.merge(pd.merge(pd.merge(pd.merge(stk_prices_test,
-                  company_overview[['Symbol', 'Sector']], how='left', on=['Symbol']),
-                  rf_test_mdl_results[['Symbol','rf_mdl_prob']].iloc[:31], how='left', on=['Symbol'] ),
-                  stkd_test_mdl_results[['Symbol','Stacked_mdl_prob']].iloc[:31], how='left', on=['Symbol']),
-                  ga_test_mdl_results[['Symbol','ga_mdl_prob']].iloc[:31], how='left', on=['Symbol']),
-                  nn_test_mdl_results[['Symbol','nn_mdl_prob']].iloc[:31], how='left', on=['Symbol'])
+stk_prices_test_upd = pd.merge(pd.merge(pd.merge(pd.merge(pd.merge(stk_prices_test,
+                                                                   company_overview[['Symbol', 'Sector']], how='left',
+                                                                   on=['Symbol']),
+                                                          rf_test_mdl_results[['Symbol', 'rf_mdl_prob']].iloc[:31],
+                                                          how='left', on=['Symbol']),
+                                                 stkd_test_mdl_results[['Symbol', 'Stacked_mdl_prob']].iloc[:31],
+                                                 how='left', on=['Symbol']),
+                                        ga_test_mdl_results[['Symbol', 'ga_mdl_prob']].iloc[:31], how='left',
+                                        on=['Symbol']),
+                               nn_test_mdl_results[['Symbol', 'nn_mdl_prob']].iloc[:31], how='left', on=['Symbol'])
 
-
-stk_prices_test_upd.iloc[:,4:] = stk_prices_test_upd.iloc[:,4:].fillna(0)
+stk_prices_test_upd.iloc[:, 4:] = stk_prices_test_upd.iloc[:, 4:].fillna(0)
 stk_prices_test_upd.isnull().sum()
 
-stk_prices_test_upd.iloc[:,4:] = stk_prices_test_upd.iloc[:,4:].apply(lambda x: [y if y <= 0 else 1 for y in x])
+stk_prices_test_upd.iloc[:, 4:] = stk_prices_test_upd.iloc[:, 4:].apply(lambda x: [y if y <= 0 else 1 for y in x])
 
-plt.clf()
+
 # Scatter Plot
 
 sns.scatterplot(data=stk_prices_test_upd.loc[stk_prices_test_upd['rf_mdl_prob'] == 0],
                 x='close_price', y='future_price', palette='deep', alpha=0.3, zorder=1)
 sns.scatterplot(data=stk_prices_test_upd.loc[stk_prices_test_upd['rf_mdl_prob'] == 1],
-                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='RF')
+                x='close_price', y='future_price', palette='deep', alpha=1, zorder=100, label='RF')
 sns.scatterplot(data=stk_prices_test_upd.loc[stk_prices_test_upd['Stacked_mdl_prob'] == 1],
-                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='Stacked')
+                x='close_price', y='future_price', palette='deep', alpha=1, zorder=100, label='Stacked')
 sns.scatterplot(data=stk_prices_test_upd.loc[stk_prices_test_upd['ga_mdl_prob'] == 1],
-                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='Genetic Algo')
+                x='close_price', y='future_price', palette='deep', alpha=1, zorder=100, label='Genetic Algo')
 sns.scatterplot(data=stk_prices_test_upd.loc[stk_prices_test_upd['nn_mdl_prob'] == 1],
-                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='Neural Net')
-plt.plot([-1,10000], [-1, 10000], linewidth=2, color='r', linestyle ='--')
+                x='close_price', y='future_price', palette='deep', alpha=1, zorder=100, label='Neural Net')
+plt.plot([-1, 10000], [-1, 10000], linewidth=2, color='r', linestyle='--')
 plt.xlabel('Close Price', size=12)
 plt.xscale('log')
 plt.ylabel('Future Price', size=12)
@@ -1530,26 +1529,23 @@ plt.title("Close Price v Future Price", fontdict={'size': 16})
 plt.tight_layout()
 plt.show()
 
-
 # Create a stock price difference column
 stk_prices_test_upd['stk_price_gth'] = (stk_prices_test_upd['future_price'] - stk_prices_test_upd['close_price']) \
-                                    / stk_prices_test_upd['close_price']
+                                       / stk_prices_test_upd['close_price']
 
 stk_prices_test_upd = stk_prices_test_upd.loc[stk_prices_test_upd['stk_price_gth'] < 10]
-
-
 
 # Boxplot and swarmplot to display the model returns by Sector
 sns.boxplot(x="Sector", y="stk_price_gth", data=stk_prices_test_upd, zorder=10)
 sns.swarmplot(x=stk_prices_test_upd["Sector"], y="stk_price_gth",
               data=stk_prices_test_upd.loc[stk_prices_test_upd['rf_mdl_prob'] == 1],
-               label ='RF', color='orange', zorder=100)
+              label='RF', color='orange', zorder=100)
 sns.swarmplot(x=stk_prices_test_upd["Sector"], y="stk_price_gth",
-               data=stk_prices_test_upd.loc[stk_prices_test_upd['Stacked_mdl_prob'] == 1],
-               label ='Stacked', color='green',zorder=100)
+              data=stk_prices_test_upd.loc[stk_prices_test_upd['Stacked_mdl_prob'] == 1],
+              label='Stacked', color='green', zorder=100)
 sns.swarmplot(x=stk_prices_test_upd["Sector"], y="stk_price_gth",
               data=stk_prices_test_upd.loc[stk_prices_test_upd['ga_mdl_prob'] == 1],
-               label ='Genetic Algo', color='red', zorder=100)
+              label='Genetic Algo', color='red', zorder=100)
 sns.swarmplot(x=stk_prices_test_upd["Sector"], y="stk_price_gth",
               data=stk_prices_test_upd.loc[stk_prices_test_upd['nn_mdl_prob'] == 1],
               label='Neural Net', color='purple', zorder=100)
@@ -1561,43 +1557,42 @@ plt.title("Model Returns by Sector", fontdict={'size': 16})
 plt.tight_layout()
 plt.show()
 
-
-
-
 # Deploy
 stk_prices_deploy = stk_prices.loc[stk_prices.index == '2021-01']
-stk_prices_deploy = stk_prices_deploy[['Symbol','close_price', 'future_price']]
+stk_prices_deploy = stk_prices_deploy[['Symbol', 'close_price', 'future_price']]
 stk_prices_deploy.isnull().sum()
 
-stk_prices_deploy = drop_row(stk_prices_deploy,['future_price'])
+stk_prices_deploy = drop_row(stk_prices_deploy, ['future_price'])
 
-stk_prices_deploy_upd= pd.merge(pd.merge(pd.merge(pd.merge(pd.merge(stk_prices_deploy,
-                  company_overview[['Symbol', 'Sector']], how='left', on=['Symbol']),
-                  rf_deploy_mdl_results[['Symbol','rf_mdl_prob']].iloc[:31], how='left', on=['Symbol'] ),
-                  stkd_deploy_mdl_results[['Symbol','Stacked_mdl_prob']].iloc[:31], how='left', on=['Symbol']),
-                  ga_deploy_mdl_results[['Symbol','ga_mdl_prob']].iloc[:31], how='left', on=['Symbol']),
-                  nn_deploy_mdl_results[['Symbol','nn_mdl_prob']].iloc[:31], how='left', on=['Symbol'])
+stk_prices_deploy_upd = pd.merge(pd.merge(pd.merge(pd.merge(pd.merge(stk_prices_deploy,
+                                                                     company_overview[['Symbol', 'Sector']], how='left',
+                                                                     on=['Symbol']),
+                                                            rf_deploy_mdl_results[['Symbol', 'rf_mdl_prob']].iloc[:31],
+                                                            how='left', on=['Symbol']),
+                                                   stkd_deploy_mdl_results[['Symbol', 'Stacked_mdl_prob']].iloc[:31],
+                                                   how='left', on=['Symbol']),
+                                          ga_deploy_mdl_results[['Symbol', 'ga_mdl_prob']].iloc[:31], how='left',
+                                          on=['Symbol']),
+                                 nn_deploy_mdl_results[['Symbol', 'nn_mdl_prob']].iloc[:31], how='left', on=['Symbol'])
 
-
-stk_prices_deploy_upd.iloc[:,4:] = stk_prices_deploy_upd.iloc[:,4:].fillna(0)
+stk_prices_deploy_upd.iloc[:, 4:] = stk_prices_deploy_upd.iloc[:, 4:].fillna(0)
 stk_prices_deploy_upd.isnull().sum()
 
-stk_prices_deploy_upd.iloc[:,4:] = stk_prices_deploy_upd.iloc[:,4:].apply(lambda x: [y if y <= 0 else 1 for y in x])
-
+stk_prices_deploy_upd.iloc[:, 4:] = stk_prices_deploy_upd.iloc[:, 4:].apply(lambda x: [y if y <= 0 else 1 for y in x])
 
 # Scatter Plot
 
 sns.scatterplot(data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['rf_mdl_prob'] == 0],
                 x='close_price', y='future_price', palette='deep', alpha=0.3, zorder=1)
 sns.scatterplot(data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['rf_mdl_prob'] == 1],
-                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='RF')
+                x='close_price', y='future_price', palette='deep', alpha=1, zorder=100, label='RF')
 sns.scatterplot(data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['Stacked_mdl_prob'] == 1],
-                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='Stacked')
+                x='close_price', y='future_price', palette='deep', alpha=1, zorder=100, label='Stacked')
 sns.scatterplot(data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['ga_mdl_prob'] == 1],
-                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='Genetic Algo')
+                x='close_price', y='future_price', palette='deep', alpha=1, zorder=100, label='Genetic Algo')
 sns.scatterplot(data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['nn_mdl_prob'] == 1],
-                x='close_price', y='future_price', palette='deep',alpha=1, zorder=100, label='Neural Net')
-plt.plot([-1,10000], [-1, 10000], linewidth=2, color='r', linestyle ='--')
+                x='close_price', y='future_price', palette='deep', alpha=1, zorder=100, label='Neural Net')
+plt.plot([-1, 10000], [-1, 10000], linewidth=2, color='r', linestyle='--')
 plt.xlabel('Close Price', size=12)
 plt.xscale('log')
 plt.ylabel('Future Price', size=12)
@@ -1607,25 +1602,23 @@ plt.title("Close Price v Future Price", fontdict={'size': 16})
 plt.tight_layout()
 plt.show()
 
-
 # Create a stock price difference column
 stk_prices_deploy_upd['stk_price_gth'] = (stk_prices_deploy_upd['future_price'] - stk_prices_deploy_upd['close_price']) \
-                                    / stk_prices_deploy_upd['close_price']
+                                         / stk_prices_deploy_upd['close_price']
 
 stk_prices_deploy_upd = stk_prices_deploy_upd.loc[stk_prices_deploy_upd['stk_price_gth'] < 10]
-
 
 # Boxplot and swarmplot to display the model returns by Sector
 sns.boxplot(x="Sector", y="stk_price_gth", data=stk_prices_deploy_upd, zorder=10)
 sns.swarmplot(x=stk_prices_deploy_upd["Sector"], y="stk_price_gth",
               data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['rf_mdl_prob'] == 1],
-              label ='RF', color='orange', zorder=100)
+              label='RF', color='orange', zorder=100)
 sns.swarmplot(x=stk_prices_deploy_upd["Sector"], y="stk_price_gth",
               data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['Stacked_mdl_prob'] == 1],
-              label ='Stacked', color='green',zorder=100)
+              label='Stacked', color='green', zorder=100)
 sns.swarmplot(x=stk_prices_deploy_upd["Sector"], y="stk_price_gth",
               data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['ga_mdl_prob'] == 1],
-               label ='Genetic Algo', color='red', zorder=100)
+              label='Genetic Algo', color='red', zorder=100)
 sns.swarmplot(x=stk_prices_deploy_upd["Sector"], y="stk_price_gth",
               data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['nn_mdl_prob'] == 1],
               label='Neural Net', color='purple', zorder=100)
@@ -1638,4 +1631,3 @@ plt.tight_layout()
 plt.show()
 
 stk_prices_deploy_upd.groupby(by='Sector').sum()
-
