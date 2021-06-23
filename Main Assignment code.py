@@ -858,8 +858,7 @@ print(pd.DataFrame(mdl_data_train.dtypes, columns=['datatype']).sort_values('dat
 # Section 3 Data prep ctd - Removing Nulls
 ##################################################################################################################
 
-# a= pd.DataFrame(X_train_df.columns)
-# a.to_csv(r'Files\a.csv', index=False, header=True)
+
 # Create the feature variable dataframes X and the target y
 
 
@@ -910,30 +909,30 @@ X_test = sc_X_test.fit_transform(X_test)
 X_deploy = sc_X_test.fit_transform(X_deploy)
 
 ##################################################################################################################
- # Please note the below has been commented out due to the length of time requireed to impute
+ # Please note the KNNImputer is very slow
 ##################################################################################################################
 
 # Impute missing values - given time constraints took the default value of 5
 # It would be worth investigating the optimal value for KNNImputer.
 # Please note the below code takes a long time to run, the results have been written out and saved on GITHUB as
 # a result
-# from sklearn.impute import KNNImputer
-# imputer = KNNImputer(n_neighbors=5, weights = "uniform")
-# X_train = imputer.fit_transform(X_train)
-# X_test = imputer.fit_transform(X_test)
-# X_deploy = imputer.fit_transform(X_deploy)
+from sklearn.impute import KNNImputer
+imputer = KNNImputer(n_neighbors=5, weights = "uniform")
+X_train = imputer.fit_transform(X_train)
+X_test = imputer.fit_transform(X_test)
+X_deploy = imputer.fit_transform(X_deploy)
 
 
-# X_train_rv = X_train
-# y_train_rv = y_train.ravel()
-# X_test_rv = X_test
-# y_test_rv = y_test.ravel()
-# X_deploy_rv = X_deploy
-# y_deploy_rv = y_deploy.ravel()
-# np.shape(X_train_rv)
-# np.shape(X_test_rv)
-# np.shape(y_train_rv)
-# np.shape(y_test_rv)
+X_train_rv = X_train
+y_train_rv = y_train.ravel()
+X_test_rv = X_test
+y_test_rv = y_test.ravel()
+X_deploy_rv = X_deploy
+y_deploy_rv = y_deploy.ravel()
+np.shape(X_train_rv)
+np.shape(X_test_rv)
+np.shape(y_train_rv)
+np.shape(y_test_rv)
 
 # X_train_rv_df = pd.DataFrame(X_train_rv)
 # y_train_rv_df = pd.DataFrame(y_train_rv)
@@ -955,20 +954,20 @@ X_deploy = sc_X_test.fit_transform(X_deploy)
 # Import the results of KNN Imputer
 
 #Please note these files have been provided
-X_train_rv_df = pd.read_csv(r'Files\X_train_rv_df.csv')
-y_train_rv_df = pd.read_csv(r'Files\y_train_rv_df.csv')
-X_test_rv_df = pd.read_csv(r'Files\X_test_rv_df.csv')
-y_test_rv_df = pd.read_csv(r'Files\y_test_rv_df.csv')
-X_deploy_rv_df = pd.read_csv(r'Files\X_deploy_rv_df.csv')
-y_deploy_rv_df = pd.read_csv(r'Files\y_deploy_rv_df.csv')
+# X_train_rv_df = pd.read_csv(r'Files\X_train_rv_df.csv')
+# y_train_rv_df = pd.read_csv(r'Files\y_train_rv_df.csv')
+# X_test_rv_df = pd.read_csv(r'Files\X_test_rv_df.csv')
+# y_test_rv_df = pd.read_csv(r'Files\y_test_rv_df.csv')
+# X_deploy_rv_df = pd.read_csv(r'Files\X_deploy_rv_df.csv')
+# y_deploy_rv_df = pd.read_csv(r'Files\y_deploy_rv_df.csv')
 
 # Convert to numpy arrays
-X_train_rv = X_train_rv_df.values
-y_train_rv = y_train_rv_df.values.ravel()
-X_test_rv = X_test_rv_df.values
-y_test_rv = y_test_rv_df.values.ravel()
-X_deploy_rv = X_deploy_rv_df.values
-y_deploy_rv = y_deploy_rv_df.values.ravel()
+# X_train_rv = X_train_rv_df.values
+# y_train_rv = y_train_rv_df.values.ravel()
+# X_test_rv = X_test_rv_df.values
+# y_test_rv = y_test_rv_df.values.ravel()
+# X_deploy_rv = X_deploy_rv_df.values
+# y_deploy_rv = y_deploy_rv_df.values.ravel()
 
 # Recursive feature elimination
 # Feature ranking with recursive feature elimination and cross-validated selection of the best number of features.
