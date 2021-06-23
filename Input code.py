@@ -30,7 +30,7 @@ import time
 # (https://www.nasdaq.com/market-activity/stocks/screener) on the 05/06/2021.
 
 # Import the CSV into Python
-
+# Please update the below links to point to the location where you have saved these files
 stocks = pd.read_csv(r'Files\NYSE_NASDAQ_stocks_20210604.csv')
 
 ###############################################################################################################
@@ -119,6 +119,7 @@ print(len(upd_stock_list))  # 6364 (7377 - 581 - 432), this is our updated list 
 # Section 1.4.1 -  Company Overview
 
 # API key received from Alpha Vantage
+# API key can be downloaded from the Alpha Vantage website
 API_key = "XXXXXXXXXXXXX"
 
 # List the columns we would like to keep from the Company overview import ("columns" list)
@@ -154,7 +155,7 @@ for stock in upd_stock_list:
 print(Overview_df)  # Company Overview information available for 5,919 of the 6,364 stocks (93%)
 
 # Write out the table to a CSV to a location on the C drive.
-Overview_df.to_csv(r'Files\Overview_df.csv', index=False, header=True)
+# Overview_df.to_csv(r'Files\Overview_df.csv', index=False, header=True)
 
 # Section 1.4.2 - EPS
 
@@ -189,7 +190,7 @@ for stock in upd_stock_list:
 print(eps_data)
 
 # Write out the CSV
-eps_data.to_csv(r'Files\eps_data.csv', index=False, header=True)
+# eps_data.to_csv(r'Files\eps_data.csv', index=False, header=True)
 
 # Section 1.4.3 - Income Statement
 
@@ -222,7 +223,7 @@ for stock in upd_stock_list:
 print(inc_st_data)
 
 # Write out the CSV
-inc_st_data.to_csv(r'Files\inc_st_data.csv', index=False, header=True)
+# inc_st_data.to_csv(r'Files\inc_st_data.csv', index=False, header=True)
 
 # Section 1.4.4 - Balance Sheet
 
@@ -254,7 +255,7 @@ for stock in upd_stock_list:
 print(BS_data)
 
 # Write out the CSV
-BS_data.to_csv(r'Files\BS_data.csv', index=False, header=True)
+# BS_data.to_csv(r'Files\BS_data.csv', index=False, header=True)
 
 # Section 1.4.5 - Cash_flow
 
@@ -286,7 +287,7 @@ for stock in upd_stock_list:
 print(CF_data)
 
 # Write out the CSV
-CF_data.to_csv(r'Files\CF_data.csv', index=False, header=True)
+# CF_data.to_csv(r'Files\CF_data.csv', index=False, header=True)
 
 # Section 1.4.6 - Monthly stock prices
 
@@ -323,4 +324,4 @@ for stock in upd_stock_list1:
 print(monthly_prices)
 
 # Write out the CSV
-monthly_prices.to_csv(r'Files\monthly_prices.csv', index=False, header=True)
+# monthly_prices.to_csv(r'Files\monthly_prices.csv', index=False, header=True)

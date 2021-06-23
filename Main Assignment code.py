@@ -190,7 +190,8 @@ pd.set_option('display.width', 1000)
 pd.set_option('display.max_columns', 1000)
 
 # Import the stock data CSVs into Python
-
+# Please update the below links to point to the location where you have saved these files
+# Please note the BS_data file has been split into two on GITHUB due to the file size
 company_overview = pd.read_csv(r'Files\Overview_df.csv')
 eps_data = pd.read_csv(r'Files\eps_data.csv')
 inc_st_data = pd.read_csv(r'Files\inc_st_data.csv')
@@ -1474,6 +1475,7 @@ deploy_drawdown_ptf.sort_values(by=['largest_drawdown'], inplace=True, ignore_in
 deploy_drawdown_ptf['Top30_ret_ddown'] = test_drawdown_ptf.iloc[:31]['future_price_gth'].mean()
 deploy_drawdown_ptf.head()
 
+# Results csv
 # test_drawdown_ptf.to_csv(r'Files\results_test.csv', index=False, header=True)
 # deploy_drawdown_ptf.to_csv(r'Files\results_deploy.csv', index=False, header=True)
 
