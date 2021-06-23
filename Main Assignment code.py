@@ -982,6 +982,7 @@ print('Optimal number of features : ', rfecv.n_features_)
 print('Best features :', X_train_df.columns[rfecv.support_])
 
 # Plot the change in f1 score as a result of removing features
+#
 plt.figure()
 plt.xlabel("No of model features removed (in 00's)")
 plt.ylabel("Cross Validation score")
