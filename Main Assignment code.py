@@ -1080,12 +1080,7 @@ print(scores_df)
 # Section 4.2 - Random forest model
 #################################################################################################################
 
-# We want to do 3 things:
-#   (i) - maximise the precision of the model (remember we are looking to purchase stocks so we want to ensure
-#         that the)
-#   (ii) - The F1 score from the hyperparameter tuning needs to be reasonable
-#   (iii)- Keep it simple, for now we will go with a RandomForestClassifier with n_estimators of 5 (as I am
-#          running out of time.
+# We will continue with a RandomForestClassifier with n_estimators of 5
 
 # Random Forest Classifier
 rf_cf = RandomForestClassifier(criterion='entropy', n_estimators=5, random_state=1)
@@ -1512,7 +1507,7 @@ stk_prices_test_upd.isnull().sum()
 
 stk_prices_test_upd.iloc[:,4:] = stk_prices_test_upd.iloc[:,4:].apply(lambda x: [y if y <= 0 else 1 for y in x])
 
-
+plt.clf()
 # Scatter Plot
 
 sns.scatterplot(data=stk_prices_test_upd.loc[stk_prices_test_upd['rf_mdl_prob'] == 0],
@@ -1543,15 +1538,20 @@ stk_prices_test_upd['stk_price_gth'] = (stk_prices_test_upd['future_price'] - st
 stk_prices_test_upd = stk_prices_test_upd.loc[stk_prices_test_upd['stk_price_gth'] < 10]
 
 
+
 # Boxplot and swarmplot to display the model returns by Sector
 sns.boxplot(x="Sector", y="stk_price_gth", data=stk_prices_test_upd, zorder=10)
-sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_test_upd.loc[stk_prices_test_upd['rf_mdl_prob'] == 1],
-              label ='RF', color='orange', zorder=100)
-sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_test_upd.loc[stk_prices_test_upd['Stacked_mdl_prob'] == 1],
-              label ='Stacked', color='green',zorder=100)
-sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_test_upd.loc[stk_prices_test_upd['ga_mdl_prob'] == 1],
+sns.swarmplot(x=stk_prices_test_upd["Sector"], y="stk_price_gth",
+              data=stk_prices_test_upd.loc[stk_prices_test_upd['rf_mdl_prob'] == 1],
+               label ='RF', color='orange', zorder=100)
+sns.swarmplot(x=stk_prices_test_upd["Sector"], y="stk_price_gth",
+               data=stk_prices_test_upd.loc[stk_prices_test_upd['Stacked_mdl_prob'] == 1],
+               label ='Stacked', color='green',zorder=100)
+sns.swarmplot(x=stk_prices_test_upd["Sector"], y="stk_price_gth",
+              data=stk_prices_test_upd.loc[stk_prices_test_upd['ga_mdl_prob'] == 1],
                label ='Genetic Algo', color='red', zorder=100)
-sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_test_upd.loc[stk_prices_test_upd['nn_mdl_prob'] == 1],
+sns.swarmplot(x=stk_prices_test_upd["Sector"], y="stk_price_gth",
+              data=stk_prices_test_upd.loc[stk_prices_test_upd['nn_mdl_prob'] == 1],
               label='Neural Net', color='purple', zorder=100)
 plt.xticks(rotation=45)
 plt.xlabel('Sector', size=12)
@@ -1617,13 +1617,17 @@ stk_prices_deploy_upd = stk_prices_deploy_upd.loc[stk_prices_deploy_upd['stk_pri
 
 # Boxplot and swarmplot to display the model returns by Sector
 sns.boxplot(x="Sector", y="stk_price_gth", data=stk_prices_deploy_upd, zorder=10)
-sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['rf_mdl_prob'] == 1],
+sns.swarmplot(x=stk_prices_deploy_upd["Sector"], y="stk_price_gth",
+              data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['rf_mdl_prob'] == 1],
               label ='RF', color='orange', zorder=100)
-sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['Stacked_mdl_prob'] == 1],
+sns.swarmplot(x=stk_prices_deploy_upd["Sector"], y="stk_price_gth",
+              data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['Stacked_mdl_prob'] == 1],
               label ='Stacked', color='green',zorder=100)
-sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['ga_mdl_prob'] == 1],
+sns.swarmplot(x=stk_prices_deploy_upd["Sector"], y="stk_price_gth",
+              data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['ga_mdl_prob'] == 1],
                label ='Genetic Algo', color='red', zorder=100)
-sns.swarmplot(x="Sector", y="stk_price_gth", data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['nn_mdl_prob'] == 1],
+sns.swarmplot(x=stk_prices_deploy_upd["Sector"], y="stk_price_gth",
+              data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['nn_mdl_prob'] == 1],
               label='Neural Net', color='purple', zorder=100)
 plt.xticks(rotation=45)
 plt.xlabel('Sector', size=12)
@@ -1632,3 +1636,6 @@ plt.ylabel('Stock Price Growth', size=12)
 plt.title("Model Returns by Sector", fontdict={'size': 16})
 plt.tight_layout()
 plt.show()
+
+stk_prices_deploy_upd.groupby(by='Sector').sum()
+
