@@ -119,15 +119,6 @@ Feature reduction:
 
 
 
-4.6	Neural Networks
-
-Model	    No of hidden layers	    No of nodes in each layer	        Activation function	    Dropout	                                  Batc size	No of epochs
-NN1	              3	                  30                                    	relu	          No dropout	                              20	    500
-NN2              	2	                  50	                                    relu	    10% on the second hidden Layer	               100	    500
-NN3             	3                 	30                                    	tanh	           No dropout	                              200	    500
-
-
-
  
 Table 4: ANN table 
 
@@ -148,16 +139,9 @@ Definitions in the below table:
 •	The “Min drawdown” portfolio takes the 200 stocks with the highest modelled probability of having a share price greater than 10% and takes only the top 30 stocks with the smallest drawdown over the last 4 years.
 •	The “Diversified” portfolio simply takes the stock with the highest probability from each industry and combines each of these into an overall well diversified portfolio (this was completed using the Combined model).  
 
-                                 Test dataset (Jul '20)					             Deployment dataset (Jan '21)			
-                         Precision	  Top 30 return	Top 100 return			 Precision	    Top 30 return	    Top 100 return	
-Random Forest	            68.0%	         18.4%	      29.0%			          62.0%	            28.6%            32.1%	
-Stacked Model	            68.0%	         41.3%	      51.1%			          57.0%	            15.1%	           17.5%	
-Genetic Algorithm   	    72.0%	         72.3%	      52.9%			          43.0%           	13.8%	           13.2%	
-Multiple Neural Networks	69.0%	          51.6%     	64.6%			          57.0%	            18.8%	           17.5%	
+	
 									
-									
-	Top 30 return	Top 100 return	Min drawdown	Diversified		Top 30 return	Top 100 return	Min drawdown	Diversified
-Combined model	25.9%	41.1%	9.2%	33.0%		29.8%	19.5%	9.2%	11.2%
+								
 
 
 5.1	Findings:
