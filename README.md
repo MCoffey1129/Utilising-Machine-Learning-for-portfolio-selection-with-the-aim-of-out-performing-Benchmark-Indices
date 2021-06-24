@@ -1,5 +1,5 @@
 ******************************************************************************************************************************************
-There is one issue in the code the return on the "minimum drawdown" portoflio should be 13.2% not 9.2%. The code should be updated as below:
+There is one issue in the code the return on the "minimum drawdown" portfolio should be 13.2% not 9.2%. The code should be updated as below:
 
 deploy_drawdown_ptf['Top30_ret_ddown'] = test_drawdown_ptf.iloc[:31]['future_price_gth'].mean()
 should read
