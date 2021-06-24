@@ -1473,7 +1473,7 @@ deploy_drawdown_ptf = pd.merge(combined_mdl_deploy, largest_drawdown, how='left'
 deploy_drawdown_ptf.head(10)
 
 deploy_drawdown_ptf.sort_values(by=['largest_drawdown'], inplace=True, ignore_index=True, ascending=False)
-deploy_drawdown_ptf['Top30_ret_ddown'] = test_drawdown_ptf.iloc[:31]['future_price_gth'].mean()
+deploy_drawdown_ptf['Top30_ret_ddown'] = deploy_drawdown_ptf.iloc[:31]['future_price_gth'].mean()
 deploy_drawdown_ptf.head()
 
 # Results csv
