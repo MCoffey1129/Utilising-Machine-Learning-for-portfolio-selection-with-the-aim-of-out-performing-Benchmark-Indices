@@ -1,12 +1,18 @@
 ******************************************************************************************************************************************
-There is one issue in the code the return on the "minimum drawdown" portfolio should be 13.2% not 9.2%. The code should be updated as below:
+There are two python scripts in this project:
+
+1. Input_code: Code to generate the data required for the model the output of which are the csvs saved on GITHUB e.g. eps_data.csv etc.
+
+2. Main assignment code - imports the csvs generated from the Input_code script and creates our models   
+
+There is one small change required in the code, the return on the "minimum drawdown" portfolio should be 13.2% not 9.2%. The code should be updated as below:
 
 deploy_drawdown_ptf['Top30_ret_ddown'] = test_drawdown_ptf.iloc[:31]['future_price_gth'].mean()
 should read
 deploy_drawdown_ptf['Top30_ret_ddown'] = deploy_drawdown_ptf.iloc[:31]['future_price_gth'].mean()
 ******************************************************************************************************************************************
 
-Model:
+The Project Explained:
 
 The aim of this project is to assess if a 6 month buy and hold trading strategy based on Machine Learning portfolio selection can out-perform the S&P 500 for the same period (the purchase and sale is assumed to occur on the last trading day of January and June each year). The list of stocks used in the project are sourced from the NASDAQ website.
 
