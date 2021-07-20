@@ -90,7 +90,7 @@ Feature reduction:
 
 
 4.2	Random Forest  
-*	A simple random forest model using 5 decision trees is applied (n_estimators = 5)  
+*	A simple random forest model using 5 decision trees is applied (n_estimators = 5). This is too small of a number and will be updated in a later version.
 *	This model was evaluated on its own and as a base estimator of a “Stacked” model.
 
 
@@ -184,5 +184,7 @@ There is one small change required in the code, the return on the "minimum drawd
 deploy_drawdown_ptf['Top30_ret_ddown'] = test_drawdown_ptf.iloc[:31]['future_price_gth'].mean()
 should read
 deploy_drawdown_ptf['Top30_ret_ddown'] = deploy_drawdown_ptf.iloc[:31]['future_price_gth'].mean()
+
+Please note there are further code updates which will be incorporated into the final version in the coming week.
 ******************************************************************************************************************************************
 
