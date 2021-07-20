@@ -1,9 +1,11 @@
 
-**Utilising Machine Learning for portfolio selection with the aim of out-performing benchmark indices**
+***Edits are currently in progress*** 
 ===
 
 
-***Edits are currently in progress***
+**Utilising Machine Learning for portfolio selection with the aim of out-performing benchmark indices**
+===
+
 
 
 **Aim of the project**
