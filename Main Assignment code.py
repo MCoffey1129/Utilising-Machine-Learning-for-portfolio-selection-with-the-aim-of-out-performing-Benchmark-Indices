@@ -1,9 +1,9 @@
 ###############################################################################################################
 # Section 1 - Data Import -ctd
 #
-#         1.6 - Company Overview table
-#         1.7 - Financial Results table
-#         1.8 - Monthly Stock Prices
+#         1.5 - Company Overview table
+#         1.6 - Financial Results table
+#         1.7 - Monthly Stock Prices
 ###############################################################################################################
 
 
@@ -24,8 +24,9 @@ from sklearn.model_selection import train_test_split, cross_val_score, GridSearc
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.svm import SVC
 from sklearn import tree
-from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.linear_model import Lasso
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import cross_val_score
@@ -225,7 +226,7 @@ symbols_in_all_files.shape  # Check complete - there are 5,082 stocks in this ta
 company_overview_upd = pd.merge(company_overview, symbols_in_all_files, how='inner', on='Symbol')
 company_overview_upd.shape  # Check - updated file contains 5,082 stocks as expected
 
-# The modelling approach we are using in this assignment  is a 6 month hold and sell strategy in which we will purchase
+# The modelling approach we are using in this assignment is a 6 month hold and sell strategy in which we will purchase
 # the stocks at Jan and July and sell the stocks 6 months later (i.e. if we purchase the stocks at July '18 we
 # will sell these stocks at Jan '19)
 
@@ -238,10 +239,10 @@ dates_df = pd.DataFrame(dates, columns=['dt'])
 dates_df.index = pd.to_datetime(dates_df['dt']).dt.to_period('M')
 dates_df = dates_df.drop(columns=dates_df.columns[0])  # drop the second dt field
 print(dates_df)
-dates_df.columns
+
 
 # We transform our company overview dataframe into a date dependent table containing each of the dates required
-# for our model (essentially multiplying the rows in the table by 8)
+# for our model (essentially multiplying the number of rows in the table by 8)
 
 company_overview_dt = pd.DataFrame()
 
@@ -386,7 +387,7 @@ financial_results_reorder.index = financial_results_reorder['dt']
 
 financial_results_reorder.head(40)
 
-financial_results_reorder.shape  # No change in the number of rows (78,126) but there are 4 extra columns (99)
+financial_results_reorder.shape  # No change in the number of rows (109,888) but there are 4 extra columns (99)
 financial_results_reorder.columns  # 4 columns which are not required, these are the last 4 columns
 
 financial_results_reorder = financial_results_reorder.drop(columns=financial_results_reorder.columns[[-1, -2, -3, -4]])
@@ -436,7 +437,7 @@ financial_results_reorder.shape  # Number of rows are unchanged at 109,888 but w
 #  + 4 (character fields) = 641
 
 # We only have 8 timeframes which we are modelling on so we can delete all other time points
-# These timepooints are saved in the dates_df
+# These timepoints are saved in the dates_df
 financial_results_reorder = pd.merge(financial_results_reorder, dates_df, left_index=True, right_index=True)
 financial_results_reorder.head(20)
 financial_results_reorder.tail(20)
@@ -697,8 +698,8 @@ print(ds)
 # Split the data into train, test and deploy datasets in order to prevent data leakage.
 # Any decision made around dropping columns or replacing nulls needs to be completed assuming we have
 # no information on the test or deploy dataset
-mdl_data_test = mdl_input_data_upd[mdl_input_data_upd.index == '2020-07']
 mdl_data_train = mdl_input_data_upd[mdl_input_data_upd.index < '2020-07']
+mdl_data_test = mdl_input_data_upd[mdl_input_data_upd.index == '2020-07']
 mdl_deploy = mdl_input_data_upd[mdl_input_data_upd.index == '2021-01']
 
 # Drop any rows where fiscalDateEnding, Net Income, revenue or where the target value is NULL, drop these rows in
@@ -711,7 +712,7 @@ mdl_deploy = drop_row(mdl_deploy, drop_list)
 # Check the Null values in the train dataset
 null_value_pc(mdl_data_train)
 
-# Drop the reportedCurrency column
+# Drop the reportedCurrency, fiscalDateEnding and reportedDate columns
 drop_col = ['reportedCurrency', 'fiscalDateEnding', 'reportedDate']
 mdl_data_train = drop_column(mdl_data_train, drop_col)
 mdl_data_test = drop_column(mdl_data_test, drop_col)
@@ -786,19 +787,19 @@ mdl_deploy['Sector'].unique()  # no nan or 'None' values in the column
 mdl_deploy['Sector'].isnull().sum()  # 0 value returned
 
 # Industry
-mdl_data_train['Industry'].isnull().sum()  # 45 missing values
+mdl_data_train['Industry'].isnull().sum()  # 14 missing values
 mdl_data_train['Industry'].unique()  # 'None' values in the column
 mdl_data_train['Industry'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
 mdl_data_train['Industry'].unique()  # no 'None' values in the column
 mdl_data_train['Industry'].isnull().sum()  # 0 value returned
 
-mdl_data_test['Industry'].isnull().sum()  # 13 missing values
+mdl_data_test['Industry'].isnull().sum()  # 6 missing values
 mdl_data_test['Industry'].unique()  # 'None' values in the column
 mdl_data_test['Industry'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
 mdl_data_test['Industry'].unique()  # no 'None' values in the column
 mdl_data_test['Industry'].isnull().sum()  # 0 value returned
 
-mdl_deploy['Industry'].isnull().sum()  # 13 missing values
+mdl_deploy['Industry'].isnull().sum()  # 7 missing values
 mdl_deploy['Industry'].unique()  # 'None' values in the column
 mdl_deploy['Industry'].replace(to_replace=[np.nan, 'None'], value=['Unknown', 'Unknown'], inplace=True)
 mdl_deploy['Industry'].unique()  # no 'None' values in the column
@@ -826,10 +827,10 @@ mdl_data_train.info()
 # useful for putting all of the character fields at the bottom of the print.
 
 # There are 9 character fields before we get dummy values for these fields we need to look into them:
-#    - Symbol has 4,754 unique values and Name has 4,577 unique values, we will drop these features as otherwise we will
-#      be modelling at too low a level
+#    - Symbol has 4,205 unique values and Name has 4,075 unique values, we will drop these features as otherwise we will
+#      be modelling at too low of a level
 #    - Asset type, currency and country all only have one unique value and as such are redundant to the model
-#    - Exchange(2) and month (2) will be included in the model
+#    - Exchange(2) will be included in the model
 #    - We will investigate if Industry (148) should be included or if Sector (13) gives us enough information
 #    - about the stock
 
@@ -849,21 +850,20 @@ mdl_data_train[['Sector', 'Industry', 'gt_10pc_gth']].groupby(by=['Sector', 'Ind
 symbol_test_df = mdl_data_test[['Symbol']]
 symbol_deploy_df = mdl_deploy[['Symbol']]
 
-mdl_data_train = mdl_data_train.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
-mdl_data_test = mdl_data_test.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
-mdl_deploy = mdl_deploy.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector'], axis=1)
+mdl_data_train = mdl_data_train.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector', 'month'], axis=1)
+mdl_data_test = mdl_data_test.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector', 'month'], axis=1)
+mdl_deploy = mdl_deploy.drop(['Symbol', 'AssetType', 'Name', 'Currency', 'Country', 'Sector', 'month'], axis=1)
 
 print(pd.DataFrame(mdl_data_train.dtypes, columns=['datatype']).sort_values('datatype'))  # 3 character fields remaining
 
 ##################################################################################################################
-# Section 3 Data prep ctd - Removing Nulls
+# Section 3 Data prep ctd - Removing Nulls, feature scaling, dimensionality reduction
 ##################################################################################################################
 
 
 # Create the feature variable dataframes X and the target y
 
-
-X_train_df = mdl_data_train.drop(['gt_10pc_gth', 'month'], axis=1)
+X_train_df = mdl_data_train.drop(['gt_10pc_gth'], axis=1)
 X_train_df = pd.get_dummies(data=X_train_df, drop_first=True)
 y_train_df = mdl_data_train['gt_10pc_gth']
 
@@ -902,12 +902,11 @@ print(y_train)
 # Feature Scaling
 # Scale the values such that each are in the range [0,1]
 # Scaling is necessary for feature selection and modelling
-sc_X_train = MinMaxScaler()
-sc_X_test = MinMaxScaler()
-sc_X_deploy = MinMaxScaler()
-X_train = sc_X_train.fit_transform(X_train)
-X_test = sc_X_test.fit_transform(X_test)
-X_deploy = sc_X_test.fit_transform(X_deploy)
+sc = MinMaxScaler()
+
+X_train = sc.fit_transform(X_train)
+X_test = sc.transform(X_test)
+X_deploy = sc.transform(X_deploy)
 
 ##################################################################################################################
  # Please note the KNNImputer is very slow
@@ -916,12 +915,13 @@ X_deploy = sc_X_test.fit_transform(X_deploy)
 # Impute missing values - given time constraints took the default value of 5
 # It would be worth investigating the optimal value for KNNImputer.
 # Please note the below code takes a long time to run, the results have been written out and saved on GITHUB as
-# a result
+# a result so you do not have to run this
 from sklearn.impute import KNNImputer
 imputer = KNNImputer(n_neighbors=5, weights = "uniform")
 X_train = imputer.fit_transform(X_train)
-X_test = imputer.fit_transform(X_test)
-X_deploy = imputer.fit_transform(X_deploy)
+X_test = imputer.transform(X_test)
+X_deploy = imputer.transform(X_deploy)
+
 
 
 X_train_rv = X_train
@@ -932,8 +932,10 @@ X_deploy_rv = X_deploy
 y_deploy_rv = y_deploy.ravel()
 np.shape(X_train_rv)
 np.shape(X_test_rv)
+np.shape(X_deploy_rv)
 np.shape(y_train_rv)
 np.shape(y_test_rv)
+np.shape(y_deploy_rv)
 
 # X_train_rv_df = pd.DataFrame(X_train_rv)
 # y_train_rv_df = pd.DataFrame(y_train_rv)
@@ -941,7 +943,7 @@ np.shape(y_test_rv)
 # y_test_rv_df = pd.DataFrame(y_test_rv)
 # X_deploy_rv_df = pd.DataFrame(X_deploy_rv)
 # y_deploy_rv_df = pd.DataFrame(y_deploy_rv)
-#
+
 # X_train_rv_df.to_csv(r'Files\X_train_rv_df.csv', index=False, header=True)
 # y_train_rv_df.to_csv(r'Files\y_train_rv_df.csv', index=False, header=True)
 # X_test_rv_df.to_csv(r'Files\X_test_rv_df.csv', index=False, header=True)
@@ -949,12 +951,11 @@ np.shape(y_test_rv)
 # X_deploy_rv_df.to_csv(r'Files\X_deploy_rv_df.csv', index=False, header=True)
 # y_deploy_rv_df.to_csv(r'Files\y_deploy_rv_df.csv', index=False, header=True)
 
-
 ##################################################################################################################
 
 # Import the results of KNN Imputer
 
-#Please note these files have been provided
+# Please note these files have been provided
 # X_train_rv_df = pd.read_csv(r'Files\X_train_rv_df.csv')
 # y_train_rv_df = pd.read_csv(r'Files\y_train_rv_df.csv')
 # X_test_rv_df = pd.read_csv(r'Files\X_test_rv_df.csv')
@@ -972,23 +973,31 @@ np.shape(y_test_rv)
 
 # Recursive feature elimination
 # Feature ranking with recursive feature elimination and cross-validated selection of the best number of features.
-# step is the number of features removed at each iteration
-# The f1 score drops from 27.43% to 13.65% after removing 100 of the features, instead of looking to manually
-# remove features from the dataset we will reduce feature dimensionality via PCA while trying to maintain
-# 90% of the variance
-rfecv = RFECV(estimator=RandomForestClassifier(), step=100, cv=5, scoring='f1')
-rfecv = rfecv.fit(X_train_rv, y_train_rv)
-print('Optimal number of features : ', rfecv.n_features_)
-print('Best features :', X_train_df.columns[rfecv.support_])
+# step is the number of features removed at each iteration - this is purely for information purposes
+# rfecv = RFECV(estimator=RandomForestClassifier(), step=100, cv=5, scoring='f1')
+# rfecv = rfecv.fit(X_train_rv, y_train_rv)
+# print('Optimal number of features : ', rfecv.n_features_)
+# print('Best features :', X_train_df.columns[rfecv.support_])
 
 # Plot the change in f1 score as a result of removing features
 ##
-plt.figure()
-plt.xlabel("No of model features removed (in 00's)")
-plt.ylabel("Cross Validation score")
-plt.plot(range(1, len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
-plt.title("Recursive Feature Elimination")
-plt.show()
+# plt.figure()
+# plt.xlabel("No of model features removed (in 00's)")
+# plt.ylabel("Cross Validation score")
+# plt.plot(range(1, len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
+# plt.title("Recursive Feature Elimination")
+# plt.show()
+
+# Univariate Feature selection
+# Another approach which was not used in this model is to reduce the number of features by only  selecting the best
+# K number of features (determined based on the features chi-squared)
+# select_feature = SelectKBest(chi2, k=1000).fit(X_train, y_train)
+# select_features_df = pd.DataFrame({'Feature': list(X_train_df.columns),
+#                                    'Scores' : select_feature.scores_})
+#
+# X_train = select_feature.transform(X_train)
+# X_test = select_feature.transform(X_test)
+##
 
 # Adopt PCA to reduce the number of columns to 100
 pca = PCA(n_components=100)
@@ -1001,16 +1010,7 @@ y_train_pca = y_train_rv
 y_test_pca = y_test_rv
 y_deploy_pca = y_deploy_rv
 
-# Univariate Feature selection
-# Another approach which was not used in this model is to reduce the number of features by only  selecting the best
-# K number of features (determined based on the features chi-squared)
-# select_feature = SelectKBest(chi2, k=1000).fit(X_train, y_train)
-# select_features_df = pd.DataFrame({'Feature': list(X_train_df.columns),
-#                                    'Scores' : select_feature.scores_})
-#
-# X_train = select_feature.transform(X_train)
-# X_test = select_feature.transform(X_test)
-##
+
 
 
 #################################################################################################################
@@ -1033,13 +1033,16 @@ y_deploy_pca = y_deploy_rv
 # through the Grid
 model_params = {
 
-    'random_forest': {'model': RandomForestClassifier(criterion='entropy', random_state=1),
-                      'params': {'n_estimators': [5, 100, 200, 500, 1000], 'max_features': ['auto', 'log2'],
+    'random_forest': {'model': RandomForestClassifier(random_state=1),
+                      'params': {'criterion': ['gini', 'entropy'],
+                                 'n_estimators': [5, 100, 200, 500], 'max_features': ['auto', 'log2'],
                                  'min_samples_leaf': [1, 2, 4], 'min_samples_split': [2, 5, 10]}},
 
+    'svm' : {'model': SVC(random_state=1),
+             'params' : {'C': [0.25, 0.5, 1], 'kernel': ['rbf'], 'gamma': [0.1, 0.3, 0.5, 0.9]}},
+
     'knn': {'model': KNeighborsClassifier(algorithm='kd_tree'),
-            'params': {'n_neighbors': [5, 10, 15, 25, 50, 100]}
-            }
+            'params': {'n_neighbors': [5, 10, 15, 25, 50, 100]}}
 }
 
 print(model_params)
@@ -1050,7 +1053,7 @@ all_scores = []
 # Fit the model_params to the GridSearch below.
 
 for model_name, mp in model_params.items():
-    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='f1_macro', cv=10,
+    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='f1_macro', cv=5,
                        return_train_score=True, verbose=2)
     clf.fit(X_train_pca, y_train_pca)
     scores.append({
@@ -1071,8 +1074,15 @@ print(all_scores)
 
 scores_df = pd.DataFrame(scores, columns=['model', 'best_score', 'best_params'])
 print(scores_df)
+# random_forest    0.522282  {'criterion': 'entropy', 'max_features': 'log2' 'min_samples_leaf': 1,
+#                             'min_samples_split': 2, 'n_estimators': 5'}
+# svm              0.432647  {'C': 1, 'gamma': 0.9, 'kernel': 'rbf'}
+# knn              0.512603  {'n_neighbors': 5}
 
-# Grid searchCV for XGBoost
+print(scores_df.iloc[0,2])
+
+#
+# # Grid searchCV for XGBoost
 
 xgb_params = {'learning_rate': [0.05, 0.1, 0.3, 0.5], 'max_depth': [3, 6, 9, 15],
               'gamma': [0, 1, 5], 'min_child_weight': [1, 3, 5]}
@@ -1082,6 +1092,7 @@ grid_search = GridSearchCV(classifier, param_grid=xgb_params, cv=5, n_jobs=-1, v
 grid_search.fit(X_train_pca, y_train_pca)
 
 print(grid_search.best_params_)
+# {'gamma': 5, 'learning_rate': 0.05, 'max_depth': 3, 'min_child_weight': 1}
 
 #################################################################################################################
 # Section 4.2 - Random forest model
@@ -1091,9 +1102,14 @@ print(grid_search.best_params_)
 # the hyperparameters once we fully understand how the model is performing.
 
 # Random Forest Classifier
-rf_cf = RandomForestClassifier(criterion='entropy', n_estimators=5, random_state=1)
+rf_cf = RandomForestClassifier(criterion='entropy', max_features='log2', min_samples_leaf=1,
+                               min_samples_split=2, n_estimators=5, random_state=1)
+# rf_cf = GaussianNB()
+#rf_cf = SVC(kernel = 'rbf', random_state = 0)
+# rf_cf = XGBClassifier()
 
 # Fit the model
+rf_cf.fit(X_train_pca, y_train_pca)
 
 # Assess the performance of the model on the test data
 y_rf_pred = rf_cf.predict(X_test_pca)
