@@ -1104,9 +1104,6 @@ print(grid_search.best_params_)
 # Random Forest Classifier
 rf_cf = RandomForestClassifier(criterion='entropy', max_features='log2', min_samples_leaf=1,
                                min_samples_split=2, n_estimators=5, random_state=1)
-# rf_cf = GaussianNB()
-#rf_cf = SVC(kernel = 'rbf', random_state = 0)
-# rf_cf = XGBClassifier()
 
 # Fit the model
 rf_cf.fit(X_train_pca, y_train_pca)
@@ -1134,8 +1131,8 @@ rf_test_mdl_results = pd.concat([symbol_test_df,
 
 rf_test_mdl_results.sort_values(by=['rf_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
 
-rf_test_mdl_results['Top30_ret'] = rf_test_mdl_results.iloc[:31]['future_price_gth'].mean()
-rf_test_mdl_results['Top100_ret'] = rf_test_mdl_results.iloc[:101]['future_price_gth'].mean()
+rf_test_mdl_results['Top30_ret'] = rf_test_mdl_results.iloc[:30]['future_price_gth'].mean()
+rf_test_mdl_results['Top100_ret'] = rf_test_mdl_results.iloc[:100]['future_price_gth'].mean()
 print(rf_test_mdl_results)
 
 # Random Forest model - deploy dataset returns
@@ -1149,8 +1146,8 @@ rf_deploy_mdl_results = pd.concat([symbol_deploy_df,
 
 rf_deploy_mdl_results.sort_values(by=['rf_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
 
-rf_deploy_mdl_results['Top30_ret'] = rf_deploy_mdl_results.iloc[:31]['future_price_gth'].mean()
-rf_deploy_mdl_results['Top100_ret'] = rf_deploy_mdl_results.iloc[:101]['future_price_gth'].mean()
+rf_deploy_mdl_results['Top30_ret'] = rf_deploy_mdl_results.iloc[:30]['future_price_gth'].mean()
+rf_deploy_mdl_results['Top100_ret'] = rf_deploy_mdl_results.iloc[:100]['future_price_gth'].mean()
 print(rf_deploy_mdl_results)
 
 #################################################################################################################
@@ -1161,24 +1158,27 @@ print(rf_deploy_mdl_results)
 level0 = list()
 
 level0.append(('knn', KNeighborsClassifier(algorithm='kd_tree', n_neighbors=5)))
-level0.append(('r_forest', RandomForestClassifier(criterion='entropy', n_estimators=5, random_state=1)))
-level0.append(('XGB', XGBClassifier(n_jobs=-1)))
+level0.append(('r_forest', RandomForestClassifier(criterion='entropy', max_features='log2', min_samples_leaf=1,
+                                                  min_samples_split=2, n_estimators=5, random_state=1)))
+level0.append(('nb', GaussianNB()))
+level0.append(('svm', SVC(C=1, gamma=0.9, kernel='rbf', random_state=1)))
+level0.append(('XGB', XGBClassifier(gamma=5, learning_rate=0.05, max_depth=3, min_child_weight=1 , n_jobs=-1)))
 level0.append(('CB', CatBoostClassifier()))
 
 # define meta learner model
 level1 = XGBClassifier()
 
 # define the stacking ensemble
-stk_mdl = StackingClassifier(estimators=level0, final_estimator=level1, cv=10, n_jobs=-1, verbose=2)
+stk_mdl = StackingClassifier(estimators=level0, final_estimator=level1, cv=5, n_jobs=-1, verbose=2)
 
 # fit the model on all available data
 stk_mdl.fit(X_train_pca, y_train_pca)
 
 # Check the model on the test set
 y_stk_pred = stk_mdl.predict(X_test_pca)
-cm = confusion_matrix(y_test_rv, y_stk_pred)
+cm = confusion_matrix(y_test_pca, y_stk_pred)
 print(cm)
-print(classification_report(y_test_rv, y_stk_pred))
+print(classification_report(y_test_pca, y_stk_pred))
 
 # Check the model on the deploy set
 y_stk_dep_pred = stk_mdl.predict(X_deploy_pca)
@@ -1198,8 +1198,8 @@ stkd_test_mdl_results = pd.concat([symbol_test_df,
 
 stkd_test_mdl_results.sort_values(by=['Stacked_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
 
-stkd_test_mdl_results['Top30_ret'] = stkd_test_mdl_results.iloc[:31]['future_price_gth'].mean()
-stkd_test_mdl_results['Top100_ret'] = stkd_test_mdl_results.iloc[:101]['future_price_gth'].mean()
+stkd_test_mdl_results['Top30_ret'] = stkd_test_mdl_results.iloc[:30]['future_price_gth'].mean()
+stkd_test_mdl_results['Top100_ret'] = stkd_test_mdl_results.iloc[:100]['future_price_gth'].mean()
 print(stkd_test_mdl_results)
 
 # Stacked model - deploy dataset returns
@@ -1213,8 +1213,8 @@ stkd_deploy_mdl_results = pd.concat([symbol_deploy_df,
 
 stkd_deploy_mdl_results.sort_values(by=['Stacked_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
 
-stkd_deploy_mdl_results['Top30_ret'] = stkd_deploy_mdl_results.iloc[:31]['future_price_gth'].mean()
-stkd_deploy_mdl_results['Top100_ret'] = stkd_deploy_mdl_results.iloc[:101]['future_price_gth'].mean()
+stkd_deploy_mdl_results['Top30_ret'] = stkd_deploy_mdl_results.iloc[:30]['future_price_gth'].mean()
+stkd_deploy_mdl_results['Top100_ret'] = stkd_deploy_mdl_results.iloc[:100]['future_price_gth'].mean()
 print(stkd_deploy_mdl_results)
 
 #################################################################################################################
@@ -1224,29 +1224,31 @@ print(stkd_deploy_mdl_results)
 # Genetic Algorithms
 # Assign the values outlined to the inputs
 
-number_generations = 3  # 3 generations of the algorithm
+number_generations = 5  # 5 generations of the algorithm
 population_size = 5  # Start with 5 algorithms
 offspring_size = 3
-scoring_function = 'precision'
+scoring_function = 'f1_macro'
 
 # Create the tpot classifier
 tpot_clf = TPOTClassifier(generations=number_generations, population_size=population_size,
                           offspring_size=offspring_size, scoring=scoring_function,
-                          verbosity=2, random_state=2, cv=5)
+                          verbosity=2, random_state=1, cv=5)
 
 # # Fit the classifier to the training data
 tpot_clf.fit(X_train_pca, y_train_pca)
 
 # # Score on the test set
-tpot_clf.score(X_test_pca, y_test_rv)
-# Best pipeline: DecisionTreeClassifier(input_matrix, criterion=gini, max_depth=3, min_samples_leaf=10, min_samples_split=9)
+tpot_clf.score(X_test_pca, y_test_pca)
+# Best pipeline: ExtraTreesClassifier(XGBClassifier(input_matrix, learning_rate=0.5, max_depth=7,
+# min_child_weight=20, n_estimators=100, n_jobs=1, subsample=0.45, verbosity=0), bootstrap=False,
+# criterion=entropy, max_features=0.45, min_samples_leaf=3, min_samples_split=11, n_estimators=100)
 
 
 # Assess the performance of the model on the test dataset
 y_ga_pred = tpot_clf.predict(X_test_pca)
-cm_rf = confusion_matrix(y_test_rv, y_ga_pred)
+cm_rf = confusion_matrix(y_test_pca, y_ga_pred)
 print(cm_rf)
-print(classification_report(y_test_rv, y_ga_pred))
+print(classification_report(y_test_pca, y_ga_pred))
 
 # Assess the performance of the model on the deployment dataset
 y_ga_dep_pred = tpot_clf.predict(X_deploy_pca)
@@ -1266,8 +1268,8 @@ ga_test_mdl_results = pd.concat([symbol_test_df,
 
 ga_test_mdl_results.sort_values(by=['ga_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
 
-ga_test_mdl_results['Top30_ret'] = ga_test_mdl_results.iloc[:31]['future_price_gth'].mean()
-ga_test_mdl_results['Top100_ret'] = ga_test_mdl_results.iloc[:101]['future_price_gth'].mean()
+ga_test_mdl_results['Top30_ret'] = ga_test_mdl_results.iloc[:30]['future_price_gth'].mean()
+ga_test_mdl_results['Top100_ret'] = ga_test_mdl_results.iloc[:100]['future_price_gth'].mean()
 print(ga_test_mdl_results)
 
 # Genetic Algorithm model  - deploy dataset returns
@@ -1281,8 +1283,8 @@ ga_deploy_mdl_results = pd.concat([symbol_deploy_df,
 
 ga_deploy_mdl_results.sort_values(by=['ga_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
 
-ga_deploy_mdl_results['Top30_ret'] = ga_deploy_mdl_results.iloc[:31]['future_price_gth'].mean()
-ga_deploy_mdl_results['Top100_ret'] = ga_deploy_mdl_results.iloc[:101]['future_price_gth'].mean()
+ga_deploy_mdl_results['Top30_ret'] = ga_deploy_mdl_results.iloc[:30]['future_price_gth'].mean()
+ga_deploy_mdl_results['Top100_ret'] = ga_deploy_mdl_results.iloc[:100]['future_price_gth'].mean()
 print(ga_deploy_mdl_results)
 
 #################################################################################################################
@@ -1291,7 +1293,7 @@ print(ga_deploy_mdl_results)
 
 # Artificial Neural Network
 # Seed the network
-tf.random.set_seed(2)
+tf.random.set_seed(1)
 
 # Initializing the ANN
 # Using a sequential neutral network
@@ -1324,7 +1326,7 @@ ann_1.compile(optimizer='adam', loss='binary_crossentropy', metrics=[precision_m
 # Training the ANN on the Training set
 # We are doing batch learning, a good rule of thumb is to use 32
 # epochs is the number of times we run over the data, in our case we run over the data 100 times
-history_1 = ann_1.fit(X_train_pca, y_train_pca, batch_size=20, epochs=500)
+history_1 = ann_1.fit(X_train_pca, y_train_pca, batch_size=20, validation_split=0.2, epochs=500)
 
 # Fit the second Neural Network - has  2 hidden layers containing 50 nodes each for
 # which the second layer has a 10% dropout. The batch size is increased to ensure that the model converges at a higher
@@ -1338,7 +1340,7 @@ ann_2.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
 ann_2.compile(optimizer='adam', loss='binary_crossentropy', metrics=[precision_m])
 history_2 = ann_2.fit(X_train_pca, y_train_pca, batch_size=100, epochs=500)
 
-# Fit the third Neural Network - which has a 20% droput on each layer and a different activation function
+# Fit the third Neural Network - which has a 20% dropout on each layer and a different activation function
 ann_3 = tf.keras.models.Sequential()
 ann_3.add(tf.keras.layers.Dense(units=30, activation=tf.keras.activations.tanh))
 ann_3.add(tf.keras.layers.Dense(units=30, activation=tf.keras.activations.tanh))
@@ -1366,9 +1368,9 @@ nn_test_prob = np.mean(np.hstack((ann_1.predict(X_test_pca), ann_2.predict(X_tes
                        axis=1)
 nn_test_prob_tf = (nn_test_prob > 0.5)
 
-cm = confusion_matrix(y_test_rv, nn_test_prob_tf)
+cm = confusion_matrix(y_test_pca, nn_test_prob_tf)
 print(cm)
-cr = classification_report(y_test_rv, nn_test_prob_tf)
+cr = classification_report(y_test_pca, nn_test_prob_tf)
 print(cr)
 
 # Assess the model on the deploy data
@@ -1391,8 +1393,8 @@ nn_test_mdl_results = pd.concat([symbol_test_df,
 
 nn_test_mdl_results.sort_values(by=['nn_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
 
-nn_test_mdl_results['Top30_ret'] = nn_test_mdl_results.iloc[:31]['future_price_gth'].mean()
-nn_test_mdl_results['Top100_ret'] = nn_test_mdl_results.iloc[:101]['future_price_gth'].mean()
+nn_test_mdl_results['Top30_ret'] = nn_test_mdl_results.iloc[:30]['future_price_gth'].mean()
+nn_test_mdl_results['Top100_ret'] = nn_test_mdl_results.iloc[:100]['future_price_gth'].mean()
 print(nn_test_mdl_results)
 
 # Artificial Neural Network model  - deploy dataset returns
@@ -1406,12 +1408,12 @@ nn_deploy_mdl_results = pd.concat([symbol_deploy_df,
 
 nn_deploy_mdl_results.sort_values(by=['nn_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
 
-nn_deploy_mdl_results['Top30_ret'] = nn_deploy_mdl_results.iloc[:31]['future_price_gth'].mean()
-nn_deploy_mdl_results['Top100_ret'] = nn_deploy_mdl_results.iloc[:101]['future_price_gth'].mean()
+nn_deploy_mdl_results['Top30_ret'] = nn_deploy_mdl_results.iloc[:30]['future_price_gth'].mean()
+nn_deploy_mdl_results['Top100_ret'] = nn_deploy_mdl_results.iloc[:100]['future_price_gth'].mean()
 print(nn_deploy_mdl_results)
 
 #################################################################################################################
-# Section 4.6 - Top 30 cases from each model versus using min Drawdown vs a fully diversified model
+# Section 4.6 - Top 30 cases from each model versus using min Drawdown versus a fully diversified model
 #################################################################################################################
 
 # Join the Test and deploy data probabilities for each model
@@ -1426,8 +1428,8 @@ combined_mdl_test['avg_mdl_prob'] = combined_mdl_test.iloc[:, 4:8].mean(axis=1)
 
 combined_mdl_test.sort_values(by=['avg_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
 
-combined_mdl_test['Top30_ret'] = combined_mdl_test.iloc[:31]['future_price_gth'].mean()
-combined_mdl_test['Top100_ret'] = combined_mdl_test.iloc[:101]['future_price_gth'].mean()
+combined_mdl_test['Top30_ret'] = combined_mdl_test.iloc[:30]['future_price_gth'].mean()
+combined_mdl_test['Top100_ret'] = combined_mdl_test.iloc[:100]['future_price_gth'].mean()
 combined_mdl_test = combined_mdl_test.iloc[:201]
 
 # Deploy dataset
@@ -1442,9 +1444,9 @@ combined_mdl_deploy['avg_mdl_prob'] = combined_mdl_deploy.iloc[:, 4:8].mean(axis
 
 combined_mdl_deploy.sort_values(by=['avg_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
 
-combined_mdl_deploy['Top30_ret'] = combined_mdl_deploy.iloc[:31]['future_price_gth'].mean()
-combined_mdl_deploy['Top100_ret'] = combined_mdl_deploy.iloc[:101]['future_price_gth'].mean()
-combined_mdl_deploy = combined_mdl_deploy.iloc[:201]
+combined_mdl_deploy['Top30_ret'] = combined_mdl_deploy.iloc[:30]['future_price_gth'].mean()
+combined_mdl_deploy['Top100_ret'] = combined_mdl_deploy.iloc[:100]['future_price_gth'].mean()
+combined_mdl_deploy = combined_mdl_deploy.iloc[:200]  # Only look at the top 200 as an option
 
 #######
 
@@ -1480,7 +1482,7 @@ test_drawdown_ptf = pd.merge(combined_mdl_test, largest_drawdown, how='left', on
 test_drawdown_ptf.head(10)
 
 test_drawdown_ptf.sort_values(by=['largest_drawdown'], inplace=True, ignore_index=True, ascending=False)
-test_drawdown_ptf['Top30_ret_ddown'] = test_drawdown_ptf.iloc[:31]['future_price_gth'].mean()
+test_drawdown_ptf['Top30_ret_ddown'] = test_drawdown_ptf.iloc[:30]['future_price_gth'].mean()
 test_drawdown_ptf.head()
 
 # Deploy Drawdown portfolio
@@ -1489,7 +1491,7 @@ deploy_drawdown_ptf = pd.merge(combined_mdl_deploy, largest_drawdown, how='left'
 deploy_drawdown_ptf.head(10)
 
 deploy_drawdown_ptf.sort_values(by=['largest_drawdown'], inplace=True, ignore_index=True, ascending=False)
-deploy_drawdown_ptf['Top30_ret_ddown'] = deploy_drawdown_ptf.iloc[:31]['future_price_gth'].mean()
+deploy_drawdown_ptf['Top30_ret_ddown'] = deploy_drawdown_ptf.iloc[:30]['future_price_gth'].mean()
 deploy_drawdown_ptf.head()
 
 # Results csv
@@ -1511,13 +1513,13 @@ stk_prices_test = drop_row(stk_prices_test, ['future_price'])
 stk_prices_test_upd = pd.merge(pd.merge(pd.merge(pd.merge(pd.merge(stk_prices_test,
                                                                    company_overview[['Symbol', 'Sector']], how='left',
                                                                    on=['Symbol']),
-                                                          rf_test_mdl_results[['Symbol', 'rf_mdl_prob']].iloc[:31],
+                                                          rf_test_mdl_results[['Symbol', 'rf_mdl_prob']].iloc[:30],
                                                           how='left', on=['Symbol']),
-                                                 stkd_test_mdl_results[['Symbol', 'Stacked_mdl_prob']].iloc[:31],
+                                                 stkd_test_mdl_results[['Symbol', 'Stacked_mdl_prob']].iloc[:30],
                                                  how='left', on=['Symbol']),
-                                        ga_test_mdl_results[['Symbol', 'ga_mdl_prob']].iloc[:31], how='left',
+                                        ga_test_mdl_results[['Symbol', 'ga_mdl_prob']].iloc[:30], how='left',
                                         on=['Symbol']),
-                               nn_test_mdl_results[['Symbol', 'nn_mdl_prob']].iloc[:31], how='left', on=['Symbol'])
+                               nn_test_mdl_results[['Symbol', 'nn_mdl_prob']].iloc[:30], how='left', on=['Symbol'])
 
 stk_prices_test_upd.iloc[:, 4:] = stk_prices_test_upd.iloc[:, 4:].fillna(0)
 stk_prices_test_upd.isnull().sum()
@@ -1585,13 +1587,13 @@ stk_prices_deploy = drop_row(stk_prices_deploy, ['future_price'])
 stk_prices_deploy_upd = pd.merge(pd.merge(pd.merge(pd.merge(pd.merge(stk_prices_deploy,
                                                                      company_overview[['Symbol', 'Sector']], how='left',
                                                                      on=['Symbol']),
-                                                            rf_deploy_mdl_results[['Symbol', 'rf_mdl_prob']].iloc[:31],
+                                                            rf_deploy_mdl_results[['Symbol', 'rf_mdl_prob']].iloc[:30],
                                                             how='left', on=['Symbol']),
-                                                   stkd_deploy_mdl_results[['Symbol', 'Stacked_mdl_prob']].iloc[:31],
+                                                   stkd_deploy_mdl_results[['Symbol', 'Stacked_mdl_prob']].iloc[:30],
                                                    how='left', on=['Symbol']),
-                                          ga_deploy_mdl_results[['Symbol', 'ga_mdl_prob']].iloc[:31], how='left',
+                                          ga_deploy_mdl_results[['Symbol', 'ga_mdl_prob']].iloc[:30], how='left',
                                           on=['Symbol']),
-                                 nn_deploy_mdl_results[['Symbol', 'nn_mdl_prob']].iloc[:31], how='left', on=['Symbol'])
+                                 nn_deploy_mdl_results[['Symbol', 'nn_mdl_prob']].iloc[:30], how='left', on=['Symbol'])
 
 stk_prices_deploy_upd.iloc[:, 4:] = stk_prices_deploy_upd.iloc[:, 4:].fillna(0)
 stk_prices_deploy_upd.isnull().sum()
