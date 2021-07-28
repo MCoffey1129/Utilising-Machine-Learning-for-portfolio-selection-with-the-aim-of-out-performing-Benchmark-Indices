@@ -1,5 +1,6 @@
 
-***Edits are currently in progress*** 
+***Edits are currently in progress, including the use of cross validation for Neural Networks and using the tuned hyperparameters for the 
+Random Forest, KNN and SVM models*** 
 ===
 
 
