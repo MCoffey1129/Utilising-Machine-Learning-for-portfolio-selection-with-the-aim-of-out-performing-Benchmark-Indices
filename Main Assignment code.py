@@ -1053,7 +1053,7 @@ all_scores = []
 # Fit the model_params to the GridSearch below.
 
 for model_name, mp in model_params.items():
-    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='f1_macro', cv=5,
+    clf = GridSearchCV(mp['model'], mp['params'], n_jobs=-1, scoring='precision', cv=5,
                        return_train_score=True, verbose=2)
     clf.fit(X_train_pca, y_train_pca)
     scores.append({
@@ -1078,6 +1078,8 @@ print(scores_df)
 #                             'min_samples_split': 2, 'n_estimators': 5'}
 # svm              0.432647  {'C': 1, 'gamma': 0.9, 'kernel': 'rbf'}
 # knn              0.512603  {'n_neighbors': 5}
+
+{'model': 'random_forest', 'best_score': 0.37887930263857905, 'best_params': {'criterion': 'gini', 'max_features': 'log2', 'min_samples_leaf': 4, 'min_samples_split': 10, 'n_estimators': 500}}, {'model': 'svm', 'best_score': 0.5355469843439767, 'best_params': {'C': 0.25, 'gamma': 0.3, 'kernel': 'rbf'}}, {'model': 'knn', 'best_score': 0.46463584414896497, 'best_params': {'n_neighbors': 100}}]
 
 print(scores_df.iloc[0,2])
 
