@@ -42,14 +42,14 @@ from sklearn.feature_selection import RFECV
 from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
-import keras.backend as K
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 from sklearn.ensemble import StackingClassifier
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 from tpot import TPOTClassifier
 import tensorflow as tf
-from keras.layers import Dropout
+import tensorflow.keras.backend as K
+from tensorflow.keras.layers import Dropout
 
 
 # Functions
@@ -1079,12 +1079,17 @@ print(scores_df)
 # svm              0.432647  {'C': 1, 'gamma': 0.9, 'kernel': 'rbf'}
 # knn              0.512603  {'n_neighbors': 5}
 
-{'model': 'random_forest', 'best_score': 0.37887930263857905, 'best_params': {'criterion': 'gini', 'max_features': 'log2', 'min_samples_leaf': 4, 'min_samples_split': 10, 'n_estimators': 500}}, {'model': 'svm', 'best_score': 0.5355469843439767, 'best_params': {'C': 0.25, 'gamma': 0.3, 'kernel': 'rbf'}}, {'model': 'knn', 'best_score': 0.46463584414896497, 'best_params': {'n_neighbors': 100}}]
+#{'model': 'random_forest', 'best_score': 0.37887930263857905,
+# 'best_params': {'criterion': 'gini', 'max_features': 'log2', 'min_samples_leaf': 4, 'min_samples_split': 10,
+# 'n_estimators': 500}},
+# {'model': 'svm', 'best_score': 0.5355469843439767, 'best_params': {'C': 0.25, 'gamma': 0.3, 'kernel': 'rbf'}}
+# , {'model': 'knn', 'best_score': 0.46463584414896497, 'best_params': {'n_neighbors': 100}}]
 
 print(scores_df.iloc[0,2])
 
-#
 # # Grid searchCV for XGBoost
+# Please note for using XGBoost you should use the DMatrix, for this project I have not to keep it a little bit easier
+# to follow
 
 xgb_params = {'learning_rate': [0.05, 0.1, 0.3, 0.5], 'max_depth': [3, 6, 9, 15],
               'gamma': [0, 1, 5], 'min_child_weight': [1, 3, 5]}
@@ -1104,8 +1109,13 @@ print(grid_search.best_params_)
 # the hyperparameters once we fully understand how the model is performing.
 
 # Random Forest Classifier
-rf_cf = RandomForestClassifier(criterion='entropy', max_features='log2', min_samples_leaf=1,
-                               min_samples_split=2, n_estimators=5, random_state=1)
+# rf_cf = RandomForestClassifier(criterion='entropy', max_features='log2', min_samples_leaf=1,
+#                                min_samples_split=2, n_estimators=5, random_state=1)
+
+# rf_cf = RandomForestClassifier(criterion= 'gini', max_features='log2', min_samples_leaf=4, \
+#                                 min_samples_split=10, n_estimators=500, random_state=1)
+
+rf_cf = KNeighborsClassifier(algorithm='kd_tree',n_neighbors=100 )
 
 # Fit the model
 rf_cf.fit(X_train_pca, y_train_pca)
@@ -1159,11 +1169,19 @@ print(rf_deploy_mdl_results)
 # Define the base models
 level0 = list()
 
-level0.append(('knn', KNeighborsClassifier(algorithm='kd_tree', n_neighbors=5)))
-level0.append(('r_forest', RandomForestClassifier(criterion='entropy', max_features='log2', min_samples_leaf=1,
-                                                  min_samples_split=2, n_estimators=5, random_state=1)))
+# level0.append(('knn', KNeighborsClassifier(algorithm='kd_tree', n_neighbors=5)))
+# level0.append(('r_forest', RandomForestClassifier(criterion='entropy', max_features='log2', min_samples_leaf=1,
+#                                                   min_samples_split=2, n_estimators=5, random_state=1)))
+# level0.append(('nb', GaussianNB()))
+# level0.append(('svm', SVC(C=1, gamma=0.9, kernel='rbf', random_state=1)))
+# level0.append(('XGB', XGBClassifier(gamma=5, learning_rate=0.05, max_depth=3, min_child_weight=1 , n_jobs=-1)))
+# level0.append(('CB', CatBoostClassifier()))
+
+level0.append(('knn', KNeighborsClassifier(algorithm='kd_tree', n_neighbors=100)))
+level0.append(('r_forest', RandomForestClassifier(criterion='entropy', max_features='log2', min_samples_leaf=1,\
+                                                    min_samples_split=2, n_estimators=5, random_state=1)))
 level0.append(('nb', GaussianNB()))
-level0.append(('svm', SVC(C=1, gamma=0.9, kernel='rbf', random_state=1)))
+level0.append(('svm', SVC(C=0.25, gamma=0.3, kernel='rbf', random_state=1)))
 level0.append(('XGB', XGBClassifier(gamma=5, learning_rate=0.05, max_depth=3, min_child_weight=1 , n_jobs=-1)))
 level0.append(('CB', CatBoostClassifier()))
 
@@ -1227,9 +1245,9 @@ print(stkd_deploy_mdl_results)
 # Assign the values outlined to the inputs
 
 number_generations = 5  # 5 generations of the algorithm
-population_size = 5  # Start with 5 algorithms
+population_size = 20  # Start with 20 algorithms
 offspring_size = 3
-scoring_function = 'f1_macro'
+scoring_function = 'precision'
 
 # Create the tpot classifier
 tpot_clf = TPOTClassifier(generations=number_generations, population_size=population_size,
@@ -1241,9 +1259,7 @@ tpot_clf.fit(X_train_pca, y_train_pca)
 
 # # Score on the test set
 tpot_clf.score(X_test_pca, y_test_pca)
-# Best pipeline: ExtraTreesClassifier(XGBClassifier(input_matrix, learning_rate=0.5, max_depth=7,
-# min_child_weight=20, n_estimators=100, n_jobs=1, subsample=0.45, verbosity=0), bootstrap=False,
-# criterion=entropy, max_features=0.45, min_samples_leaf=3, min_samples_split=11, n_estimators=100)
+# Best pipeline: MLPClassifier(input_matrix, alpha=0.1, learning_rate_init=0.01)
 
 
 # Assess the performance of the model on the test dataset
@@ -1330,17 +1346,40 @@ ann_1.compile(optimizer='adam', loss='binary_crossentropy', metrics=[precision_m
 # epochs is the number of times we run over the data, in our case we run over the data 100 times
 history_1 = ann_1.fit(X_train_pca, y_train_pca, batch_size=20, validation_split=0.2, epochs=500)
 
+
+# Plot the precision by epoch
+# plt.clf()
+plt.plot(history_1.history['precision_m'], label='Actual')
+plt.plot(history_1.history['val_precision_m'], label='Validation')
+plt.title('Precision by Epoch')
+plt.xlabel('# of epochs')
+plt.ylabel('Precision')
+plt.legend()
+plt.show()
+
+
 # Fit the second Neural Network - has  2 hidden layers containing 50 nodes each for
 # which the second layer has a 10% dropout. The batch size is increased to ensure that the model converges at a higher
 # precision, a higher batch usually leads to a lower test accuracy to counteract this we have included the
 # dropout of 10% on the second hidden layer
 ann_2 = tf.keras.models.Sequential()
-ann_2.add(tf.keras.layers.Dense(units=50, activation='relu'))
-ann_2.add(tf.keras.layers.Dense(units=50, activation='relu'))
-ann_2.add(Dropout(0.1))
+ann_2.add(tf.keras.layers.Dense(units=200, activation='relu'))
+ann_2.add(tf.keras.layers.Dense(units=100, activation='relu'))
+ann_2.add(Dropout(0.5))
 ann_2.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
 ann_2.compile(optimizer='adam', loss='binary_crossentropy', metrics=[precision_m])
-history_2 = ann_2.fit(X_train_pca, y_train_pca, batch_size=100, epochs=500)
+history_2 = ann_2.fit(X_train_pca, y_train_pca, batch_size=50, validation_split=0.2, epochs=300)
+
+# Plot the precision by epoch
+# plt.clf()
+plt.plot(history_2.history['precision_m'], label='Actual')
+plt.plot(history_2.history['val_precision_m'], label='Validation')
+plt.title('Precision by Epoch')
+plt.xlabel('# of epochs')
+plt.ylabel('Precision')
+plt.legend()
+plt.show()
+
 
 # Fit the third Neural Network - which has a 20% dropout on each layer and a different activation function
 ann_3 = tf.keras.models.Sequential()
@@ -1349,19 +1388,15 @@ ann_3.add(tf.keras.layers.Dense(units=30, activation=tf.keras.activations.tanh))
 ann_3.add(tf.keras.layers.Dense(units=30, activation=tf.keras.activations.tanh))
 ann_3.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
 ann_3.compile(optimizer='adam', loss='binary_crossentropy', metrics=[precision_m])
-history_3 = ann_3.fit(X_train_pca, y_train_pca, batch_size=200, epochs=500)
-
-# Plot the Precision (by epoch) value for each neural network
-# history_1, _2 and _3 returned from model.fit() is a dictionary that has an entry, 'precision', which is the
-# training precision. We want to ensure this has more or less flattened out at the end of our training.
+history_3 = ann_3.fit(X_train_pca, y_train_pca, batch_size=100, validation_split=0.2, epochs=200)
 
 # Plot the precision from the fitted models
-plt.plot(history_1.history['precision_m'], label='NN_1')
-plt.plot(history_2.history['precision_m'], label='NN_2')
-plt.plot(history_3.history['precision_m'], label='NN_3')
-plt.title('Precision by model')
+# plt.clf()
+plt.plot(history_3.history['precision_m'], label='Actual')
+plt.plot(history_3.history['val_precision_m'], label='Validation')
+plt.title('Precision by Epoch')
 plt.xlabel('# of epochs')
-plt.ylabel('Precision (Training set)')
+plt.ylabel('Precision')
 plt.legend()
 plt.show()
 
@@ -1433,6 +1468,7 @@ combined_mdl_test.sort_values(by=['avg_mdl_prob'], inplace=True, ignore_index=Tr
 combined_mdl_test['Top30_ret'] = combined_mdl_test.iloc[:30]['future_price_gth'].mean()
 combined_mdl_test['Top100_ret'] = combined_mdl_test.iloc[:100]['future_price_gth'].mean()
 combined_mdl_test = combined_mdl_test.iloc[:201]
+print(combined_mdl_test)
 
 # Deploy dataset
 combined_mdl_deploy = \
@@ -1449,7 +1485,7 @@ combined_mdl_deploy.sort_values(by=['avg_mdl_prob'], inplace=True, ignore_index=
 combined_mdl_deploy['Top30_ret'] = combined_mdl_deploy.iloc[:30]['future_price_gth'].mean()
 combined_mdl_deploy['Top100_ret'] = combined_mdl_deploy.iloc[:100]['future_price_gth'].mean()
 combined_mdl_deploy = combined_mdl_deploy.iloc[:200]  # Only look at the top 200 as an option
-
+print(combined_mdl_deploy)
 #######
 
 
@@ -1530,7 +1566,7 @@ stk_prices_test_upd.iloc[:, 4:] = stk_prices_test_upd.iloc[:, 4:].apply(lambda x
 
 
 # Scatter Plot
-
+# plt.clf()
 sns.scatterplot(data=stk_prices_test_upd.loc[stk_prices_test_upd['rf_mdl_prob'] == 0],
                 x='close_price', y='future_price', palette='deep', alpha=0.3, zorder=1)
 sns.scatterplot(data=stk_prices_test_upd.loc[stk_prices_test_upd['rf_mdl_prob'] == 1],
