@@ -1,15 +1,24 @@
-**Utilising Machine Learning for portfolio selection with the aim of out-performing benchmark indices**
+**Utilising Machine Learning for portfolio selection with the aim of out-performing the S&P 500**
 ===
 
+**Files and code**
+---
+**Input files:**    
+The input files used in the project are generated from AlphaVantage via the Python code "Input_code." This code does not need to be re-run (you can if you have a licence key) and instead you can simply run the "Main_assignment_code" and import the below input tables from your local drive (or wherever you save the files).  
+The input files include BS_data (balance sheet data for each company), CF_data (cashflow statement results for each company), overview_df (overview of each company), eps_data (earnings data for each company), inc_st_data (income statement data for each company) and monthly_prices (stock price information for each company).  
 
-**Aim and results of the project**
+**Results:**   
+The results datasets "results_test" and "results_deploy" have been uploaded to GITHUB. The process (including the results of each model) has been documented in the word doc. "Machine_Learning_for_stock_selection" which has also been saved on to GITHUB.
+
+
+**Aim and Results of the project**
 ---
 
 The aim of this project is to assess if a 6 month buy and hold trading strategy based on Machine Learning portfolio selection can out-perform the S&P 500 for the same period (the purchase and sale is assumed to occur on the last trading day of January and July each year). The list of stocks used in the project are either traded on the NASDAQ or the NYSE.  
 
-The models outperformed the S&P 500 in the first 6-month trading window (July '20 - Jan '21) with the Stacked model and Random Forest model generating returns of 66.3% and 63.5% respectively versus a return of 13.5% in the S&P 500 in the same period.  
+Each model outperforms the S&P500 across the 12-month period. The models significantly outperformed the S&P 500 in the first 6-month trading window (July '20 - Jan '21) with the Stacked model and Random Forest model generating returns of 66.3% and 63.5% respectively versus a return of 13.5% in the S&P 500 in the same period.  
 
-Each model outperforms the S&P500 across the 12-month period, however the models look to be outdated by the second 6-month trading period. I have retested the models including the first 6-month period in the training data and the result for the second 6-month period is much improved. 
+However the models look to be outdated by the second 6-month trading period. Please note including the first 6-month period in the training data results in a much improved model return for the second 6-month trading period (which suggests the model would need to be updated every 6 months).  
 
 **A word document with more detailed results "Machine_Learning_for_stock_selection" has been saved to GITHUB.**
 
