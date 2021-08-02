@@ -9,7 +9,9 @@ The aim of this project is to assess if a 6 month buy and hold trading strategy 
 
 The models outperformed the S&P 500 in the first 6-month trading window (July '20 - Jan '21) with the Stacked model and Random Forest model generating returns of 66.3% and 63.5% respectively versus a return of 13.5% in the S&P 500 in the same period.  
 
-Each model outperforms the S&P500 across the 12-month period, however the models look to be outdated by the second 6-month trading period. I have retested the models including the first 6-month period in the training data and the result for the second 6-month period is much improved. A word document with more detailed results "Machine_Learning_for_stock_selection" has been saved to GITHUB.
+Each model outperforms the S&P500 across the 12-month period, however the models look to be outdated by the second 6-month trading period. I have retested the models including the first 6-month period in the training data and the result for the second 6-month period is much improved. 
+
+**A word document with more detailed results "Machine_Learning_for_stock_selection" has been saved to GITHUB.**
 
 
 **Modelling approach**
