@@ -1074,18 +1074,11 @@ print(all_scores)
 
 scores_df = pd.DataFrame(scores, columns=['model', 'best_score', 'best_params'])
 print(scores_df)
-# random_forest    0.522282  {'criterion': 'entropy', 'max_features': 'log2' 'min_samples_leaf': 1,
-#                             'min_samples_split': 2, 'n_estimators': 5'}
-# svm              0.432647  {'C': 1, 'gamma': 0.9, 'kernel': 'rbf'}
-# knn              0.512603  {'n_neighbors': 5}
+# random_forest    0.378879  {'criterion': 'gini', 'max_features': 'log2', 'min_samples_leaf': 4, 'min_samples_split': 10,
+#                             'n_estimators': 500}
+# svm              0.535546  {'C': 0.25, 'gamma': 0.3, 'kernel': 'rbf'}
+# knn              0.464635  {'n_neighbors': 100}
 
-#{'model': 'random_forest', 'best_score': 0.37887930263857905,
-# 'best_params': {'criterion': 'gini', 'max_features': 'log2', 'min_samples_leaf': 4, 'min_samples_split': 10,
-# 'n_estimators': 500}},
-# {'model': 'svm', 'best_score': 0.5355469843439767, 'best_params': {'C': 0.25, 'gamma': 0.3, 'kernel': 'rbf'}}
-# , {'model': 'knn', 'best_score': 0.46463584414896497, 'best_params': {'n_neighbors': 100}}]
-
-print(scores_df.iloc[0,2])
 
 # # Grid searchCV for XGBoost
 # Please note for using XGBoost you should use the DMatrix, for this project I have not to keep it a little bit easier
@@ -1105,17 +1098,11 @@ print(grid_search.best_params_)
 # Section 4.2 - Random forest model
 #################################################################################################################
 
-# We will continue with a RandomForestClassifier with n_estimators of 5. We will look to optimise
-# the hyperparameters once we fully understand how the model is performing.
+# Random Forest Classifier  - using the optimal hyperparameters post using GridSearchCV
 
-# Random Forest Classifier
-# rf_cf = RandomForestClassifier(criterion='entropy', max_features='log2', min_samples_leaf=1,
-#                                min_samples_split=2, n_estimators=5, random_state=1)
+rf_cf = RandomForestClassifier(criterion= 'gini', max_features='log2', min_samples_leaf=4, \
+                                min_samples_split=10, n_estimators=500, random_state=1)
 
-# rf_cf = RandomForestClassifier(criterion= 'gini', max_features='log2', min_samples_leaf=4, \
-#                                 min_samples_split=10, n_estimators=500, random_state=1)
-
-rf_cf = KNeighborsClassifier(algorithm='kd_tree',n_neighbors=100 )
 
 # Fit the model
 rf_cf.fit(X_train_pca, y_train_pca)
@@ -1169,24 +1156,17 @@ print(rf_deploy_mdl_results)
 # Define the base models
 level0 = list()
 
-# level0.append(('knn', KNeighborsClassifier(algorithm='kd_tree', n_neighbors=5)))
-# level0.append(('r_forest', RandomForestClassifier(criterion='entropy', max_features='log2', min_samples_leaf=1,
-#                                                   min_samples_split=2, n_estimators=5, random_state=1)))
-# level0.append(('nb', GaussianNB()))
-# level0.append(('svm', SVC(C=1, gamma=0.9, kernel='rbf', random_state=1)))
-# level0.append(('XGB', XGBClassifier(gamma=5, learning_rate=0.05, max_depth=3, min_child_weight=1 , n_jobs=-1)))
-# level0.append(('CB', CatBoostClassifier()))
-
 level0.append(('knn', KNeighborsClassifier(algorithm='kd_tree', n_neighbors=100)))
-level0.append(('r_forest', RandomForestClassifier(criterion='entropy', max_features='log2', min_samples_leaf=1,\
-                                                    min_samples_split=2, n_estimators=5, random_state=1)))
+level0.append(('r_forest', RandomForestClassifier(criterion= 'gini', max_features='log2', min_samples_leaf=4, \
+                                                  min_samples_split=10, n_estimators=500, random_state=1)))
 level0.append(('nb', GaussianNB()))
 level0.append(('svm', SVC(C=0.25, gamma=0.3, kernel='rbf', random_state=1)))
-level0.append(('XGB', XGBClassifier(gamma=5, learning_rate=0.05, max_depth=3, min_child_weight=1 , n_jobs=-1)))
-level0.append(('CB', CatBoostClassifier()))
+level0.append(('XGB', XGBClassifier(gamma=5, learning_rate=0.05, max_depth=3, min_child_weight=1 , n_jobs=-1
+                                    , random_state=1)))
+
 
 # define meta learner model
-level1 = XGBClassifier()
+level1 = XGBClassifier(random_state=1)
 
 # define the stacking ensemble
 stk_mdl = StackingClassifier(estimators=level0, final_estimator=level1, cv=5, n_jobs=-1, verbose=2)
@@ -1259,19 +1239,19 @@ tpot_clf.fit(X_train_pca, y_train_pca)
 
 # # Score on the test set
 tpot_clf.score(X_test_pca, y_test_pca)
-# Best pipeline: MLPClassifier(input_matrix, alpha=0.1, learning_rate_init=0.01)
+# Best pipeline: MLPClassifier(input_matrix, alpha=0.1, learning_rate_init=0.001)
 
 
 # Assess the performance of the model on the test dataset
 y_ga_pred = tpot_clf.predict(X_test_pca)
-cm_rf = confusion_matrix(y_test_pca, y_ga_pred)
-print(cm_rf)
+cm = confusion_matrix(y_test_pca, y_ga_pred)
+print(cm)
 print(classification_report(y_test_pca, y_ga_pred))
 
 # Assess the performance of the model on the deployment dataset
 y_ga_dep_pred = tpot_clf.predict(X_deploy_pca)
-cm_rf = confusion_matrix(y_deploy_pca, y_ga_dep_pred)
-print(cm_rf)
+cm = confusion_matrix(y_deploy_pca, y_ga_dep_pred)
+print(cm)
 print(classification_report(y_deploy_pca, y_ga_dep_pred))
 
 # Genetic Algorithm model - Test dataset returns
@@ -1318,12 +1298,12 @@ tf.random.set_seed(1)
 ann_1 = tf.keras.models.Sequential()
 
 # Adding the input layer and the first hidden layer
-# The first hidden layer contains 10 nodes from the Dense class and the activation function is the rectifier function
+# The first hidden layer contains 30 nodes from the Dense class and the activation function is the rectifier function
 # Activation = max(x,0) (which is 0 for negative values and then increases linearly until 1)
 ann_1.add(tf.keras.layers.Dense(units=30, activation='relu'))
 
 # Adding the second hidden layer
-# The second and third hidden layer contains 10 nodes and the activation function is the rectifier function
+# The second and third hidden layer contains 30 nodes and the activation function is the rectifier function
 ann_1.add(tf.keras.layers.Dense(units=30, activation='relu'))
 ann_1.add(tf.keras.layers.Dense(units=30, activation='relu'))
 
@@ -1342,51 +1322,52 @@ ann_1.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
 ann_1.compile(optimizer='adam', loss='binary_crossentropy', metrics=[precision_m])
 
 # Training the ANN on the Training set
-# We are doing batch learning, a good rule of thumb is to use 32
-# epochs is the number of times we run over the data, in our case we run over the data 100 times
-history_1 = ann_1.fit(X_train_pca, y_train_pca, batch_size=20, validation_split=0.2, epochs=500)
+# We are doing batch learning, with a batch_size of 20
+# epochs is the number of times we run over the data, in our case we run over the data 200 times
+history_1 = ann_1.fit(X_train_pca, y_train_pca, batch_size=20, validation_split=0.2, epochs=200)
 
 
 # Plot the precision by epoch
 # plt.clf()
 plt.plot(history_1.history['precision_m'], label='Actual')
 plt.plot(history_1.history['val_precision_m'], label='Validation')
-plt.title('Precision by Epoch')
+plt.title('NN1 Precision by Epoch')
 plt.xlabel('# of epochs')
 plt.ylabel('Precision')
 plt.legend()
 plt.show()
 
 
-# Fit the second Neural Network - has  2 hidden layers containing 50 nodes each for
-# which the second layer has a 10% dropout. The batch size is increased to ensure that the model converges at a higher
-# precision, a higher batch usually leads to a lower test accuracy to counteract this we have included the
-# dropout of 10% on the second hidden layer
+# Fit the second Neural Network - has  2 hidden layers containing 200 and 100 nodes respectively
+# which the second layer has a 50% dropout.
 ann_2 = tf.keras.models.Sequential()
 ann_2.add(tf.keras.layers.Dense(units=200, activation='relu'))
 ann_2.add(tf.keras.layers.Dense(units=100, activation='relu'))
 ann_2.add(Dropout(0.5))
 ann_2.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
 ann_2.compile(optimizer='adam', loss='binary_crossentropy', metrics=[precision_m])
-history_2 = ann_2.fit(X_train_pca, y_train_pca, batch_size=50, validation_split=0.2, epochs=300)
+history_2 = ann_2.fit(X_train_pca, y_train_pca, batch_size=50, validation_split=0.2, epochs=100)
 
 # Plot the precision by epoch
 # plt.clf()
 plt.plot(history_2.history['precision_m'], label='Actual')
 plt.plot(history_2.history['val_precision_m'], label='Validation')
-plt.title('Precision by Epoch')
+plt.title('NN2 Precision by Epoch')
 plt.xlabel('# of epochs')
 plt.ylabel('Precision')
 plt.legend()
 plt.show()
 
 
-# Fit the third Neural Network - which has a 20% dropout on each layer and a different activation function
+# Fit the third Neural Network - which has a 10% dropout on each layer and a different activation function
 ann_3 = tf.keras.models.Sequential()
+ann_3.add(tf.keras.layers.Dense(units=100, activation=tf.keras.activations.tanh))
 ann_3.add(tf.keras.layers.Dense(units=30, activation=tf.keras.activations.tanh))
-ann_3.add(tf.keras.layers.Dense(units=30, activation=tf.keras.activations.tanh))
-ann_3.add(tf.keras.layers.Dense(units=30, activation=tf.keras.activations.tanh))
+ann_3.add(Dropout(0.1))
+ann_3.add(tf.keras.layers.Dense(units=10, activation=tf.keras.activations.tanh))
+ann_3.add(Dropout(0.1))
 ann_3.add(tf.keras.layers.Dense(units=1, activation='sigmoid'))
+#sgd = tf.keras.optimizers.SGD(learning_rate=0.01, decay=1e-6, momentum=0.1, nesterov=True)
 ann_3.compile(optimizer='adam', loss='binary_crossentropy', metrics=[precision_m])
 history_3 = ann_3.fit(X_train_pca, y_train_pca, batch_size=100, validation_split=0.2, epochs=200)
 
@@ -1394,7 +1375,7 @@ history_3 = ann_3.fit(X_train_pca, y_train_pca, batch_size=100, validation_split
 # plt.clf()
 plt.plot(history_3.history['precision_m'], label='Actual')
 plt.plot(history_3.history['val_precision_m'], label='Validation')
-plt.title('Precision by Epoch')
+plt.title('NN3 Precision by Epoch')
 plt.xlabel('# of epochs')
 plt.ylabel('Precision')
 plt.legend()
@@ -1455,13 +1436,11 @@ print(nn_deploy_mdl_results)
 
 # Join the Test and deploy data probabilities for each model
 combined_mdl_test = \
-    pd.merge(
-        pd.merge(pd.merge(rf_test_mdl_results[['Symbol', 'Industry', 'gt_10pc_gth', 'future_price_gth', 'rf_mdl_prob']]
-                          , stkd_test_mdl_results[['Symbol', 'Stacked_mdl_prob']], how='left', on=['Symbol'])
-                 , ga_test_mdl_results[['Symbol', 'ga_mdl_prob']], how='left', on=['Symbol'])
+        pd.merge(stkd_test_mdl_results[['Symbol', 'Industry', 'gt_10pc_gth', 'future_price_gth', 'Stacked_mdl_prob']]
         , nn_test_mdl_results[['Symbol', 'nn_mdl_prob']], how='left', on=['Symbol'])
 
-combined_mdl_test['avg_mdl_prob'] = combined_mdl_test.iloc[:, 4:8].mean(axis=1)
+
+combined_mdl_test['avg_mdl_prob'] = combined_mdl_test.iloc[:, 4:6].mean(axis=1)
 
 combined_mdl_test.sort_values(by=['avg_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
 
@@ -1472,13 +1451,10 @@ print(combined_mdl_test)
 
 # Deploy dataset
 combined_mdl_deploy = \
-    pd.merge(pd.merge(
-        pd.merge(rf_deploy_mdl_results[['Symbol', 'Industry', 'gt_10pc_gth', 'future_price_gth', 'rf_mdl_prob']]
-                 , stkd_deploy_mdl_results[['Symbol', 'Stacked_mdl_prob']], how='left', on=['Symbol'])
-        , ga_deploy_mdl_results[['Symbol', 'ga_mdl_prob']], how='left', on=['Symbol'])
+        pd.merge(stkd_deploy_mdl_results[['Symbol', 'Industry', 'gt_10pc_gth', 'future_price_gth', 'Stacked_mdl_prob']]
         , nn_deploy_mdl_results[['Symbol', 'nn_mdl_prob']], how='left', on=['Symbol'])
 
-combined_mdl_deploy['avg_mdl_prob'] = combined_mdl_deploy.iloc[:, 4:8].mean(axis=1)
+combined_mdl_deploy['avg_mdl_prob'] = combined_mdl_deploy.iloc[:, 4:6].mean(axis=1)
 
 combined_mdl_deploy.sort_values(by=['avg_mdl_prob'], inplace=True, ignore_index=True, ascending=False)
 
@@ -1583,7 +1559,7 @@ plt.xscale('log')
 plt.ylabel('Future Price', size=12)
 plt.yscale('log')
 # plt.legend(loc='upper left')
-plt.title("Close Price v Future Price", fontdict={'size': 16})
+plt.title("Close Price v Future Price (log scale)", fontdict={'size': 16})
 plt.tight_layout()
 plt.show()
 
@@ -1639,7 +1615,7 @@ stk_prices_deploy_upd.isnull().sum()
 stk_prices_deploy_upd.iloc[:, 4:] = stk_prices_deploy_upd.iloc[:, 4:].apply(lambda x: [y if y <= 0 else 1 for y in x])
 
 # Scatter Plot
-
+# plt.clf()
 sns.scatterplot(data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['rf_mdl_prob'] == 0],
                 x='close_price', y='future_price', palette='deep', alpha=0.3, zorder=1)
 sns.scatterplot(data=stk_prices_deploy_upd.loc[stk_prices_deploy_upd['rf_mdl_prob'] == 1],
@@ -1656,7 +1632,7 @@ plt.xscale('log')
 plt.ylabel('Future Price', size=12)
 plt.yscale('log')
 # plt.legend(loc='upper left')
-plt.title("Close Price v Future Price", fontdict={'size': 16})
+plt.title("Close Price v Future Price (log scale)", fontdict={'size': 16})
 plt.tight_layout()
 plt.show()
 
